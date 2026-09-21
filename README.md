@@ -50,7 +50,7 @@ Every trigger reaches `playStop(stopKey)` in `src/lib/audio.ts`. That is the rep
 
 `public/tram-network.svg` is a true vector trace of the supplied PNG’s tram inks, not an embedded raster. Stop labels and accessible interactive groups are rendered in the inline SVG by `src/components/tram-map.tsx`. Railways, legends, route-number discs, branding, river, and non-stop annotations are removed. **Zajezdnia Nowa Huta remains because it is a named passenger tram stop**, not a depot symbol.
 
-The development-only `scripts/trace-map.py` regenerates the vector from the original 3780 × 2992 reference, using Pillow, NumPy, and VTracer. None of those packages or the source PNG is needed at runtime. The trace was checked against an aligned temporary source underlay; the raster is not shipped.
+The development-only `scripts/trace-map.py` regenerates the vector from the original 3780 × 2992 reference, using Pillow, NumPy, and VTracer. Stop dots use native circles; the seven hollow tunnel lanes use measured Bézier centerlines with uniform strokes and crossing gaps instead of raster-traced edges. None of those packages or the source PNG is needed at runtime. The trace was checked against an aligned temporary source underlay; the raster is not shipped.
 
 ## Verification
 

@@ -69,7 +69,12 @@ nearest = np.zeros((height, width), dtype=np.uint8)
 background = np.array([36, 31, 49], dtype=np.float32)
 relative = pixels.astype(np.float32) - background
 excluded = [(246, 97, 81), (89, 77, 122), (39, 196, 255), (97, 160, 234), (255, 255, 255), (61, 56, 70)]
-for index, color in enumerate(palette + excluded):
+# The orange-red route has a darker core near Krowodrza Górka. Match both
+# sampled shades to the same output ink; otherwise only its thin edges survive.
+ink_samples = list(enumerate(palette + excluded)) + [
+    (palette.index((255, 106, 70)), (254, 97, 62)),
+]
+for index, color in ink_samples:
     vector = np.array(color, dtype=np.float32) - background
     coverage = np.clip((relative * vector).sum(axis=2) / (vector * vector).sum(), 0.30, 1)
     delta = relative - coverage[:, :, None] * vector
@@ -83,10 +88,28 @@ svg = ET.Element("svg", {
     "fill-rule": "evenodd", "aria-hidden": "true",
 })
 ET.SubElement(svg, "title").text = "Kraków tram network — traced from the supplied reference"
+# Hollow tunnel strokes are too thin to trace cleanly. Their isolated raster
+# contours are replaced below with centerlines measured from the reference.
+# (ink, contour bounds, centerline). Stop circles still come from the trace.
+tunnels = [
+    ("#ff9800", (610, 378, 895, 467), "M646.468 376.5 V408 C646.468 422.256 646.468 422.256 661 422.256 H860 Q890.9 422.256 890.9 453.1 V468.5"),
+    ("#ff6a46", (610, 378, 895, 467), "M639.088 376.5 V408 C639.088 429.894 639.088 429.894 661 429.894 H860 Q883.4 429.894 883.4 453.1 V468.5"),
+    ("#af6438", (610, 378, 895, 467), "M631.571 376.5 V408 C631.571 437.428 631.571 437.428 661 437.428 H860 Q876.1 437.428 876.1 453.1 V468.5"),
+    ("#364a74", (610, 378, 895, 467), "M616.804 376.5 V408 C616.804 444.706 616.804 444.706 654 444.706 H860 Q868.8 444.706 868.8 453.1 V468.5"),
+    ("#28bc92", (324, 1184, 424, 1213), "M325.5 1184.7 L341 1200.2 Q348.5 1207.675 360.5 1207.675 H425.8"),
+    ("#ff9800", (320, 1189, 424, 1220), "M320.8 1190.4 L335.8 1205.4 Q345.8 1215.198 360.5 1215.198 H425.8"),
+    ("#ffcb00", (314, 1194, 424, 1228), "M315.4 1195.05 L330.5 1210.15 Q342.8 1222.835 360.5 1222.835 H425.8"),
+]
 stop_circles = []
+replaced_contours = 0
 with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
     for index, color in enumerate(palette):
         mask = keep & (nearest == index) & (distance < 10 ** 2)
+        if color == (255, 106, 70):
+            # Regression check: the orange route must retain its core, not just
+            # its antialiased edges, along the vertical section and the bend.
+            for x, y in [(476, 230), (476, 265), (476, 305), (500, 341)]:
+                assert mask[round(y * sy), round(x * sx)], f"Missing orange ink at {x}, {y}"
         # vtracer binary traces black objects on white.
         bitmap = Image.fromarray(np.where(mask, 0, 255).astype(np.uint8))
         png, vector = Path(temp) / "ink.png", Path(temp) / "ink.svg"
@@ -105,10 +128,18 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
                 attributes = {key: value for key, value in path.attrib.items() if key != "fill"}
                 tx, ty = map(float, re.findall(r"-?\d+(?:\.\d+)?", attributes["transform"]))
                 outlines = []
+                tunnel_contour = False
                 for part_index, part in enumerate(re.findall(r"M[^M]+", attributes["d"])):
                     points = list(map(float, re.findall(r"-?\d+(?:\.\d+)?", part)))
                     xs, ys = points[::2], points[1::2]
                     left, right, top, bottom = min(xs), max(xs), min(ys), max(ys)
+                    if part_index == 0:
+                        tunnel_contour = any(
+                            ink == "#%02x%02x%02x" % color
+                            and x1 <= (tx + left) / sx <= (tx + right) / sx <= x2
+                            and y1 <= (ty + top) / sy <= (ty + bottom) / sy <= y2
+                            for ink, (x1, y1, x2, y2), _ in tunnels
+                        )
                     # VTracer's small inner contours are stop holes. Keep the
                     # outer route contour and larger/skinny gaps unchanged.
                     # ponytail: size-based detection is specific to this artwork;
@@ -122,7 +153,29 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
                     else:
                         outlines.append(part)
                 attributes["d"] = "".join(outlines)
-                ET.SubElement(group, "path", attributes)
+                if tunnel_contour:
+                    replaced_contours += 1
+                else:
+                    ET.SubElement(group, "path", attributes)
+
+# Keep the original underpasses beneath the two north–south surface tracks.
+clip = ET.SubElement(ET.SubElement(svg, "defs"), "clipPath", {"id": "tunnel-crossings"})
+ET.SubElement(clip, "path", {
+    "d": "M0 0H1778V1408H0Z M621 0H628V1408H621Z M798 0H806V1408H798Z",
+    "clip-rule": "evenodd",
+})
+tunnel_lines = ET.SubElement(svg, "g", {
+    "id": "tunnel-lines", "fill": "none", "stroke-linejoin": "round",
+})
+for ink, bounds, centerline in tunnels:
+    attrs = {"d": centerline}
+    if bounds[1] == 378:
+        attrs["clip-path"] = "url(#tunnel-crossings)"
+    ET.SubElement(tunnel_lines, "path", {
+        **attrs, "stroke": ink, "stroke-width": "3.8", "stroke-linecap": "round",
+    })
+    ET.SubElement(tunnel_lines, "path", {**attrs, "stroke": "#241f31", "stroke-width": "1.2"})
+assert replaced_contours == 16, f"Expected 16 tunnel contours, found {replaced_contours}"
 
 # Native circles stay round even at maximum zoom. Draw in viewBox coordinates,
 # outside the trace's slightly non-uniform source-image scale.

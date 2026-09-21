@@ -51,6 +51,32 @@ test("traced stop markers are native, unscaled SVG circles", () => {
   }
 });
 
+test("tunnels use matching smooth strokes with a uniform center gap", () => {
+  const svg = readFileSync(
+    new URL("../../public/tram-network.svg", import.meta.url),
+    "utf8",
+  );
+  const tunnels = svg.match(/<g id="tunnel-lines"[^>]*>([\s\S]*?)<\/g>/)?.[1];
+  assert(tunnels);
+  const paths = [...tunnels.matchAll(/<path\b([^>]*)\/>/g)];
+  expect(paths).toHaveLength(14); // Four northern and three southern lanes.
+  for (let i = 0; i < paths.length; i += 2) {
+    const outer = paths[i][1];
+    const inner = paths[i + 1][1];
+    const centerline = outer.match(/d="([^"]+)"/)?.[1];
+    expect(centerline).toMatch(/[CQ]/);
+    expect(inner.match(/d="([^"]+)"/)?.[1]).toBe(centerline);
+    expect(outer).toContain('stroke-width="3.8"');
+    expect(inner).toContain('stroke="#241f31" stroke-width="1.2"');
+    if (i < 8) {
+      expect(outer).toContain('clip-path="url(#tunnel-crossings)"');
+      expect(inner).toContain('clip-path="url(#tunnel-crossings)"');
+    }
+  }
+  expect(svg).toContain('<clipPath id="tunnel-crossings">');
+  expect(svg).toContain('clip-rule="evenodd"');
+});
+
 const theatre = stopsByKey.get("teatr-slowackiego");
 assert(theatre);
 const valid: Gtfs.transit_realtime.IVehiclePosition = {

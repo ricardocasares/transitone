@@ -158,6 +158,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
               type="button"
               className={`listen-button ${listening ? "listening" : ""}`}
               aria-pressed={listening}
+              aria-label={listening ? "Pause listening" : "Start listening"}
               onClick={toggleListening}
             >
               <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -167,7 +168,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
                   <path d="m6 3 11 7-11 7V3Z" />
                 )}
               </svg>
-              {listening ? "Pause listening" : "Start listening"}
+              <span>{listening ? "Pause listening" : "Start listening"}</span>
             </button>
           </div>
           <div className="tuning-controls">

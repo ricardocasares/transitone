@@ -293,68 +293,25 @@ a:focus-visible {
     inset-inline: 12px;
   }
   .console {
-    padding: 10px 12px;
-    border-radius: 26px;
-    display: grid;
-    grid-template-columns: 1fr 1.5fr;
-    gap: 10px;
-  }
-  .transport {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .listen-button {
-    min-width: 0;
-    width: 100%;
-  }
-  .tuning-controls {
-    grid-column: 2;
-    grid-row: 1;
-    padding-left: 12px;
-    gap: 12px;
-  }
-  .root-control select {
-    min-width: 51px;
-  }
-  .scale-control {
-    flex: 1;
-    min-width: 0;
-  }
-  .scale-control select {
-    width: 100%;
-  }
-  .now-playing {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    padding-left: 0;
-    border-left: 0;
-    flex-direction: row;
-    align-items: center;
+    padding: 8px;
+    border-radius: 35px;
     gap: 8px;
   }
-  .eyebrow {
-    font-size: 8px;
-  }
-  .ready-text {
-    font-size: 10px;
-  }
-  .recent-note {
-    font-size: 10px;
-  }
-}
-@media (max-width: 430px) {
-  .console {
-    gap: 8px 10px;
-    grid-template-columns: 1fr 1.6fr;
-  }
   .listen-button {
-    font-size: 10px;
-    padding: 10px;
-    gap: 6px;
+    min-width: 0;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .listen-button > span {
+    display: none;
   }
   .tuning-controls {
-    padding-left: 10px;
-    gap: 10px;
+    flex-shrink: 0;
+    padding-left: 0;
+    border-left: 0;
+    gap: 6px;
   }
   .control select {
     padding-right: 10px;
@@ -364,7 +321,28 @@ a:focus-visible {
     min-width: 40px;
   }
   .scale-control select {
-    min-width: 0;
+    width: clamp(76px, 22vw, 110px);
+  }
+  .now-playing {
+    padding-left: 8px;
+  }
+  .eyebrow,
+  .ready-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .control > span,
+  .eyebrow {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  .ready-text {
+    font-size: 10px;
+  }
+  .recent-note {
+    font-size: 10px;
+    gap: 5px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

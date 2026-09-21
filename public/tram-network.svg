@@ -409,12 +409,12 @@
     <path d="M290.5 1170.15 L315.4 1195.05 L330.5 1210.15 Q342.8 1222.835 360.5 1222.835 H425.8 H461.1" stroke="#ffcb00" stroke-width="4.2" />
     <path d="M315.4 1195.05 L330.5 1210.15 Q342.8 1222.835 360.5 1222.835 H425.8" stroke="#241f31" stroke-width="1.2" />
   </g>
-  <g id="zus-tracks" fill="none" stroke-width="4.2">
-    <path d="M305.620 1106.471L317.620 1094.471" stroke="#ffcb00" />
-    <path d="M310.794 1111.645L322.794 1099.645" stroke="#abd39d" />
-    <path d="M315.968 1116.819L327.968 1104.819" stroke="#28bc92" />
-    <path d="M321.142 1121.993L333.142 1109.993" stroke="#1470e0" />
-    <path d="M326.316 1127.167L338.316 1115.167" stroke="#364a74" />
+  <g id="zus-tracks">
+    <path d="M-6.2 -2.5L-6.2 1.54L6.2 1.77L6.2 -2.14Z" transform="translate(311.62 1100.471) rotate(-45)" fill="#ffcb00" />
+    <path d="M-6.2 -1.79L-6.2 2.12L6.2 2.14L6.2 -1.78Z" transform="translate(316.794 1105.645) rotate(-45)" fill="#abd39d" />
+    <path d="M-6.2 -1.79L-6.2 2.12L6.2 2.15L6.2 -1.77Z" transform="translate(321.968 1110.819) rotate(-45)" fill="#28bc92" />
+    <path d="M-6.2 -1.8L-6.2 2.11L6.2 2.34L6.2 -2.06Z" transform="translate(327.142 1115.993) rotate(-45)" fill="#1470e0" />
+    <path d="M-6.2 -1.41L-6.2 2.16L6.2 2.29L6.2 -1.62Z" transform="translate(332.316 1121.167) rotate(-45)" fill="#364a74" />
   </g>
   <g id="stop-markers" fill="#241f31" stroke-width="1.8">
     <circle cx="727.959" cy="118.433" stroke="#ff9800" r="3.1" />
@@ -888,11 +888,11 @@
     <circle cx="1490.862" cy="511.186" stroke="#33bc1a" r="3.1" />
     <circle cx="1520.496" cy="511.186" stroke="#33bc1a" r="3.1" />
     <circle cx="1550.129" cy="511.186" stroke="#33bc1a" r="3.1" />
-    <circle cx="311.620" cy="1100.471" stroke="#ffcb00" r="3.1" />
-    <circle cx="316.794" cy="1105.645" stroke="#abd39d" r="3.1" />
-    <circle cx="321.968" cy="1110.819" stroke="#28bc92" r="3.1" />
-    <circle cx="327.142" cy="1115.993" stroke="#1470e0" r="3.1" />
-    <circle cx="332.316" cy="1121.167" stroke="#364a74" r="3.1" />
+    <circle cx="311.385" cy="1100.236" stroke="#ffcb00" r="3.1" />
+    <circle cx="316.916" cy="1105.767" stroke="#abd39d" r="3.1" />
+    <circle cx="322.094" cy="1110.945" stroke="#28bc92" r="3.1" />
+    <circle cx="327.246" cy="1116.097" stroke="#1470e0" r="3.1" />
+    <circle cx="332.567" cy="1121.418" stroke="#364a74" r="3.1" />
   </g>
   <g fill="none" stroke="#e4e0e8" stroke-width="1.5">
     <rect x="520" y="319" width="30" height="51" rx="3" />

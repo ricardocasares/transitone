@@ -57,7 +57,9 @@ test("traced stop markers are native, unscaled SVG circles", () => {
   expect(zusColors.sort()).toEqual(
     ["#ffcb00", "#abd39d", "#28bc92", "#1470e0", "#364a74"].sort(),
   );
-  expect(svg.match(/clip-path="url\(#zus-original-markers\)"/g)).toHaveLength(5);
+  expect(svg.match(/clip-path="url\(#zus-original-markers\)"/g)).toHaveLength(
+    5,
+  );
 });
 
 test("tunnels share a continuous outer stroke with their solid approaches", () => {

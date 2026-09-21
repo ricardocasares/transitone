@@ -106,9 +106,13 @@ defs = ET.SubElement(svg, "defs")
 # The source uses triangles at Łagiewniki ZUS. Replace their entire silhouettes,
 # including the three previously detected holes, with five aligned circle stops.
 zus_stops = [
-    ("#ffcb00", 311.620, 1100.471), ("#abd39d", 316.794, 1105.645),
-    ("#28bc92", 321.968, 1110.819), ("#1470e0", 327.142, 1115.993),
-    ("#364a74", 332.316, 1121.167),
+    # Track-edge offsets at either end of the cleared strip, measured from the
+    # existing vector. Matching these avoids steps where the repair rejoins it.
+    ("#ffcb00", 311.620, 1100.471, (-2.50, 1.54, -2.14, 1.77)),
+    ("#abd39d", 316.794, 1105.645, (-1.79, 2.12, -1.78, 2.14)),
+    ("#28bc92", 321.968, 1110.819, (-1.79, 2.12, -1.77, 2.15)),
+    ("#1470e0", 327.142, 1115.993, (-1.80, 2.11, -2.06, 2.34)),
+    ("#364a74", 332.316, 1121.167, (-1.41, 2.16, -1.62, 2.29)),
 ]
 zus_clip = ET.SubElement(defs, "clipPath", {"id": "zus-original-markers"})
 ET.SubElement(zus_clip, "path", {
@@ -145,7 +149,7 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
         parent = svg
         if ink in {"#28bc92", "#ff9800", "#ffcb00"}:
             parent = ET.SubElement(svg, "g", {"clip-path": "url(#tunnel-south-surface)"})
-        if ink in {color for color, _, _ in zus_stops}:
+        if ink in {color for color, _, _, _ in zus_stops}:
             parent = ET.SubElement(parent, "g", {"clip-path": "url(#zus-original-markers)"})
         group = ET.SubElement(parent, "g", {
             "fill": "#%02x%02x%02x" % color,
@@ -210,16 +214,19 @@ assert replaced_contours == 29, f"Expected 29 tunnel/surface contours, found {re
 
 # Restore just the straight tracks under the cleared markers. Nearby route
 # curves and the interchange outline remain untouched.
-zus_tracks = ET.SubElement(svg, "g", {"id": "zus-tracks", "fill": "none", "stroke-width": "4.2"})
-for ink, x, y in zus_stops:
+zus_tracks = ET.SubElement(svg, "g", {"id": "zus-tracks"})
+for ink, x, y, (lo1, hi1, lo2, hi2) in zus_stops:
     ET.SubElement(zus_tracks, "path", {
-        "d": f"M{x - 6:.3f} {y + 6:.3f}L{x + 6:.3f} {y - 6:.3f}", "stroke": ink,
+        "d": f"M-6.2 {lo1}L-6.2 {hi1}L6.2 {hi2}L6.2 {lo2}Z",
+        "transform": f"translate({x} {y}) rotate(-45)", "fill": ink,
     })
 stop_circles = [
     stop for stop in stop_circles
     if not (308 < float(stop["cx"]) < 336 and 1097 < float(stop["cy"]) < 1125)
 ]
-stop_circles.extend({"cx": f"{x:.3f}", "cy": f"{y:.3f}", "stroke": ink} for ink, x, y in zus_stops)
+for ink, x, y, edges in zus_stops:
+    offset = sum(edges) / (4 * 2 ** 0.5)
+    stop_circles.append({"cx": f"{x + offset:.3f}", "cy": f"{y + offset:.3f}", "stroke": ink})
 
 # Native circles stay round even at maximum zoom. Draw in viewBox coordinates,
 # outside the trace's slightly non-uniform source-image scale.

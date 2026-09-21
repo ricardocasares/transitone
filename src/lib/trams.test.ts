@@ -479,7 +479,7 @@ describe("musical scheduling", () => {
   });
 });
 
-test("audio replays full snapshots, preserves pending notes when retuning, and clears on mute", async () => {
+test("audio plays at full volume, preserves pending notes when retuning, and clears on pause", async () => {
   function param() {
     return {
       value: 0,
@@ -516,6 +516,7 @@ test("audio replays full snapshots, preserves pending notes when retuning, and c
     };
   }
   const oscillators: ReturnType<typeof node>[] = [];
+  const gains: ReturnType<typeof node>[] = [];
   let clock = 10;
   let contexts = 0;
   const original = globalThis.AudioContext;
@@ -528,7 +529,11 @@ test("audio replays full snapshots, preserves pending notes when retuning, and c
     }
     state = "running";
     destination = node();
-    createGain = node;
+    createGain() {
+      const gain = node();
+      gains.push(gain);
+      return gain;
+    }
     createBiquadFilter = node;
     createStereoPanner = node;
     createDynamicsCompressor = node;
@@ -547,6 +552,7 @@ test("audio replays full snapshots, preserves pending notes when retuning, and c
     await engine.unlock();
     await engine.unlock();
     expect(contexts).toBe(1);
+    expect(gains[0].gain.value).toBe(0.65);
     const keys = Array.from({ length: 62 }, () => theatre.key);
     engine.playSnapshot(keys);
     expect(oscillators).toHaveLength(62);
@@ -569,10 +575,7 @@ test("audio replays full snapshots, preserves pending notes when retuning, and c
     expect(oscillators[oscillators.length - 1].startTime).toBeCloseTo(
       clock + 0.012,
     );
-    const beforeMute = oscillators.length;
-    engine.setMuted(true);
-    engine.playSnapshot(keys);
-    expect(oscillators).toHaveLength(beforeMute);
+    engine.clear();
     expect(oscillators[oscillators.length - 1].stopTime).toBeCloseTo(
       clock + 0.02,
     );

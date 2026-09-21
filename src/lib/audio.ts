@@ -19,12 +19,9 @@ export function createAudioEngine(
   onPlay: (stopKey: string, note: string) => void,
 ) {
   let context: AudioContext | undefined;
-  let master: GainNode;
   let compressor: DynamicsCompressorNode;
-  let volume = 0.55;
   let root = 0;
   let scale: ScaleName = "Major pentatonic";
-  let muted = false;
   let queueEnd = 0;
   let voices: Voice[] = [];
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -32,14 +29,14 @@ export function createAudioEngine(
   async function unlock() {
     if (!context) {
       context = new AudioContext({ latencyHint: "interactive" });
-      master = context.createGain();
+      const master = context.createGain();
       compressor = context.createDynamicsCompressor();
       compressor.threshold.value = -18;
       compressor.knee.value = 18;
       compressor.ratio.value = 8;
       compressor.attack.value = 0.003;
       compressor.release.value = 0.18;
-      master.gain.value = muted ? 0 : volume * 0.65;
+      master.gain.value = 0.65; // Full app volume, retaining the mix’s gain staging.
       compressor.connect(master).connect(context.destination);
     }
     if (context.state !== "running") await context.resume();
@@ -48,7 +45,7 @@ export function createAudioEngine(
 
   function playStop(stopKey: string, requestedTime?: number) {
     const stop = stopsByKey.get(stopKey);
-    if (!context || context.state !== "running" || !stop || muted) return;
+    if (!context || context.state !== "running" || !stop) return;
     const now = context.currentTime;
     voices = voices.filter((voice) => voice.end > now);
     const live = requestedTime !== undefined;
@@ -93,7 +90,7 @@ export function createAudioEngine(
     const timer = setTimeout(
       () => {
         timers.delete(timer);
-        if (!muted) onPlay(stopKey, note.name);
+        onPlay(stopKey, note.name);
       },
       Math.max(0, (time - context.currentTime) * 1000),
     );
@@ -119,7 +116,7 @@ export function createAudioEngine(
     unlock,
     playStop,
     playSnapshot(keys: string[]) {
-      if (!context || context.state !== "running" || muted) return;
+      if (!context || context.state !== "running") return;
       const times = batchTimes(
         keys.length,
         Math.max(context.currentTime, queueEnd),
@@ -142,25 +139,6 @@ export function createAudioEngine(
           playStop(voice.stopKey, voice.start) ?? 0,
         );
       }
-    },
-    setVolume(next: number) {
-      volume = next;
-      if (context)
-        master.gain.setTargetAtTime(
-          muted ? 0 : volume * 0.65,
-          context.currentTime,
-          0.02,
-        );
-    },
-    setMuted(next: boolean) {
-      muted = next;
-      if (next) clear();
-      if (context)
-        master.gain.setTargetAtTime(
-          next ? 0 : volume * 0.65,
-          context.currentTime,
-          0.015,
-        );
     },
     clear,
     async close() {

@@ -107,7 +107,13 @@ const TramMap = memo(
       const observer = new ResizeObserver(([entry]) => {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0)
-          apply(resizeView(view.current, width / height));
+          apply(
+            resizeView(
+              view.current,
+              width / height,
+              width <= 760 ? "height" : "width",
+            ),
+          );
       });
       observer.observe(element);
       const wheel = (event: WheelEvent) => {

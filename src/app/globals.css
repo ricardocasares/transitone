@@ -150,7 +150,7 @@ a:focus-visible {
   position: absolute;
   inset-inline: 24px;
   bottom: max(12px, env(safe-area-inset-bottom));
-  max-width: 860px;
+  max-width: 740px;
   margin-inline: auto;
   pointer-events: none;
 }
@@ -244,61 +244,6 @@ a:focus-visible {
 .scale-control select {
   width: 145px;
 }
-.volume-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.icon-button {
-  border: 0;
-  padding: 8px;
-  background: transparent;
-  color: #b9b0c6;
-  width: 35px;
-  height: 35px;
-  border-radius: 6px;
-}
-.icon-button:hover {
-  background: #ffffff09;
-  color: #fff;
-}
-.icon-button svg {
-  display: block;
-  width: 19px;
-  height: 19px;
-}
-input[type="range"] {
-  --level: 55%;
-  width: 83px;
-  height: 32px;
-  cursor: pointer;
-  accent-color: var(--accent);
-  appearance: none;
-  border-radius: 2px;
-  background:
-    linear-gradient(
-      to right,
-      #b6cda1 0%,
-      #b6cda1 var(--level),
-      #494152 var(--level),
-      #494152 100%
-    )
-    center / 100% 3px no-repeat;
-}
-input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 9px;
-  height: 9px;
-  background: var(--accent);
-  border-radius: 50%;
-}
-input[type="range"]::-moz-range-thumb {
-  width: 9px;
-  height: 9px;
-  border: 0;
-  background: var(--accent);
-  border-radius: 50%;
-}
 .now-playing {
   flex: 1;
   min-width: 0;
@@ -314,6 +259,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .recent-note {
   display: flex;
+  min-width: 0;
   align-items: center;
   gap: 9px;
   font-size: 12px;
@@ -385,9 +331,6 @@ input[type="range"]::-moz-range-thumb {
   .now-playing {
     padding-left: 12px;
   }
-  .volume-control input {
-    width: 58px;
-  }
   .scale-control select {
     width: 145px;
     font-size: 12px;
@@ -431,17 +374,14 @@ input[type="range"]::-moz-range-thumb {
   .scale-control select {
     width: 100%;
   }
-  .volume-control {
-    grid-column: 1;
-    grid-row: 2;
-  }
-  .volume-control input {
-    width: min(100px, 60%);
-  }
   .now-playing {
-    grid-column: 2;
+    grid-column: 1 / -1;
     grid-row: 2;
-    padding-left: 12px;
+    padding-left: 0;
+    border-left: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
   }
   .eyebrow {
     font-size: 8px;
@@ -480,9 +420,6 @@ input[type="range"]::-moz-range-thumb {
   }
   .scale-control select {
     min-width: 0;
-  }
-  .now-playing {
-    padding-left: 10px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

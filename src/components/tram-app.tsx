@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type CSSProperties,
   type ReactNode,
   useCallback,
   useEffect,
@@ -18,38 +17,14 @@ import { type AudioEngine, createAudioEngine } from "@/lib/audio";
 import { ROOTS, SCALES, type ScaleName } from "@/lib/music";
 import TramMap, { type MapHandle } from "./tram-map";
 
-function SoundIcon({ muted }: { muted: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      aria-hidden="true"
-    >
-      <path d="M11 5 6 9H3v6l5 4V5Z" />
-      {muted ? (
-        <path d="m16 9 6 6m0-6-6 6" />
-      ) : (
-        <>
-          <path d="M15 8a6 6 0 0 1 0 8" />
-          <path d="M18 5a10 10 0 0 1 0 14" />
-        </>
-      )}
-    </svg>
-  );
-}
-
 export default function TramApp({ network }: { network: ReactNode }) {
   const map = useRef<MapHandle>(null);
   const engine = useRef<AudioEngine | null>(null);
   const playing = useRef(false);
   const tracker = useRef(createSnapshotTracker());
   const [listening, setListening] = useState(false);
-  const [muted, setMuted] = useState(false);
   const [root, setRoot] = useState(0);
   const [scale, setScale] = useState<ScaleName>("Major pentatonic");
-  const [volume, setVolume] = useState(0.55);
   const [status, setStatus] = useState<
     "connecting" | "live" | "retrying" | "paused"
   >("connecting");
@@ -74,12 +49,6 @@ export default function TramApp({ network }: { network: ReactNode }) {
   useEffect(() => {
     getEngine().tune(root, scale);
   }, [root, scale, getEngine]);
-  useEffect(() => {
-    getEngine().setVolume(volume);
-  }, [volume, getEngine]);
-  useEffect(() => {
-    getEngine().setMuted(muted);
-  }, [muted, getEngine]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -241,27 +210,6 @@ export default function TramApp({ network }: { network: ReactNode }) {
                 ))}
               </select>
             </label>
-          </div>
-          <div className="volume-control">
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={muted ? "Unmute sound" : "Mute sound"}
-              aria-pressed={muted}
-              onClick={() => setMuted(!muted)}
-            >
-              <SoundIcon muted={muted || volume === 0} />
-            </button>
-            <input
-              aria-label="Volume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={volume}
-              onChange={(e) => setVolume(Number(e.target.value))}
-              style={{ "--level": `${volume * 100}%` } as CSSProperties}
-            />
           </div>
           <div className="now-playing">
             <span className="eyebrow">

@@ -368,6 +368,9 @@ const aliases: Record<string, string[]> = {
 const groups = platformGroups as Record<string, string[]>;
 export const mapStops: StopNode[] = positions.map((row) => {
   const [label, x, y, labelX = x + 12, labelY = y + 4] = row;
+  const dx = labelX - x;
+  const dy = labelY - y;
+  const spacing = Math.max(1, 20 / Math.hypot(dx, dy));
   const gtfsNames = aliases[label] ?? [label];
   const key = (label === "Salwator Pętla" ? "Salwator" : label)
     .normalize("NFD")
@@ -381,8 +384,8 @@ export const mapStops: StopNode[] = positions.map((row) => {
     label,
     x,
     y,
-    labelX,
-    labelY,
+    labelX: x + dx * spacing,
+    labelY: y + dy * spacing,
     angle: row.angle ?? 0,
     anchor: row.anchor ?? "start",
     hub: row.hub ?? false,

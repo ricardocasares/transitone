@@ -95,6 +95,13 @@ test("tunnels share a continuous outer stroke with their solid approaches", () =
   expect(svg).toContain('clip-rule="evenodd"');
 });
 
+test("every stop label clears its route marker", () => {
+  for (const stop of mapStops)
+    expect(
+      Math.hypot(stop.labelX - stop.x, stop.labelY - stop.y),
+    ).toBeGreaterThanOrEqual(20 - 1e-9);
+});
+
 const theatre = stopsByKey.get("teatr-slowackiego");
 assert(theatre);
 const valid: Gtfs.transit_realtime.IVehiclePosition = {

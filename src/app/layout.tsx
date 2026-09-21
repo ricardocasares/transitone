@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Barlow, Barlow_Condensed } from "next/font/google";
+import { Barlow } from "next/font/google";
 import "./globals.css";
 
 const barlow = Barlow({
-  weight: "400",
-  subsets: ["latin", "latin-ext"],
-  variable: "--font-barlow",
-});
-const barlowCondensed = Barlow_Condensed({
   weight: ["400", "600"],
   subsets: ["latin", "latin-ext"],
-  variable: "--font-barlow-condensed",
 });
 
 export const metadata: Metadata = {
@@ -21,10 +15,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${barlow.variable} ${barlowCondensed.variable}`}
-    >
+    <html lang="en" className={barlow.className}>
       <body>{children}</body>
     </html>
   );

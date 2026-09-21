@@ -7,7 +7,6 @@
   --ink: #f1edf6;
   --accent: #d3efb5;
   --hairline: #ffffff12;
-  --font-sans: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -16,7 +15,6 @@ body {
   margin: 0;
   background: var(--map);
   color: var(--ink);
-  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -67,7 +65,6 @@ a:focus-visible {
   inset: 0;
   overflow: hidden;
   background: var(--map);
-  font-family: var(--font-barlow), sans-serif;
 }
 .network-map {
   width: 100%;
@@ -89,15 +86,12 @@ a:focus-visible {
 }
 .map-stop text {
   fill: #d2cddb;
-  font-family: var(--font-barlow-condensed), sans-serif;
   font-size: 10.7px;
-  font-stretch: condensed;
-  font-weight: 450;
   letter-spacing: 0.08px;
 }
 .map-stop.interchange text {
   fill: #32bee7;
-  font-weight: 650;
+  font-weight: 600;
 }
 .stop-hit {
   fill: transparent;
@@ -162,7 +156,7 @@ a:focus-visible {
   justify-content: center;
   gap: 10px;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.05px;
   transition:
     background 0.15s,
@@ -199,7 +193,6 @@ a:focus-visible {
   color: #c8c0d2;
   font-size: 9px;
   letter-spacing: 1.65px;
-  font-weight: 500;
 }
 .control select {
   border: 0;

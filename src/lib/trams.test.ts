@@ -31,6 +31,26 @@ import {
 } from "./music";
 
 const now = 1_790_000_000_000;
+
+test("traced stop markers are native, unscaled SVG circles", () => {
+  const svg = readFileSync(
+    new URL("../../public/tram-network.svg", import.meta.url),
+    "utf8",
+  );
+  const markers = svg.match(/<g id="stop-markers"[^>]*>([\s\S]*?)<\/g>/)?.[1];
+  assert(markers);
+  const circles = [...markers.matchAll(/<circle\b([^>]*)\/>/g)];
+  expect(circles).toHaveLength(474);
+  for (const [, attributes] of circles) {
+    expect(attributes).toContain('r="3.1"');
+    expect(attributes).toMatch(/stroke="#[\da-f]{6}"/);
+    expect(attributes).not.toContain("transform");
+    const x = Number(attributes.match(/cx="([\d.]+)"/)?.[1]);
+    const y = Number(attributes.match(/cy="([\d.]+)"/)?.[1]);
+    expect(x > 0 && x < 1778 && y > 0 && y < 1408).toBe(true);
+  }
+});
+
 const theatre = stopsByKey.get("teatr-slowackiego");
 assert(theatre);
 const valid: Gtfs.transit_realtime.IVehiclePosition = {

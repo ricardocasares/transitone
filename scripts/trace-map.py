@@ -5,6 +5,7 @@ Requires Pillow, numpy, vtracer (development tools only).
 Coordinates below refer to the 1778 x 1408 preview of the 3780 x 2992 source.
 """
 
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -82,6 +83,7 @@ svg = ET.Element("svg", {
     "fill-rule": "evenodd", "aria-hidden": "true",
 })
 ET.SubElement(svg, "title").text = "Kraków tram network — traced from the supplied reference"
+stop_circles = []
 with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
     for index, color in enumerate(palette):
         mask = keep & (nearest == index) & (distance < 10 ** 2)
@@ -101,7 +103,34 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
         for path in ET.parse(vector).getroot():
             if path.tag.endswith("path"):
                 attributes = {key: value for key, value in path.attrib.items() if key != "fill"}
+                tx, ty = map(float, re.findall(r"-?\d+(?:\.\d+)?", attributes["transform"]))
+                outlines = []
+                for part_index, part in enumerate(re.findall(r"M[^M]+", attributes["d"])):
+                    points = list(map(float, re.findall(r"-?\d+(?:\.\d+)?", part)))
+                    xs, ys = points[::2], points[1::2]
+                    left, right, top, bottom = min(xs), max(xs), min(ys), max(ys)
+                    # VTracer's small inner contours are stop holes. Keep the
+                    # outer route contour and larger/skinny gaps unchanged.
+                    # ponytail: size-based detection is specific to this artwork;
+                    # revisit these bounds if the reference diagram changes.
+                    if part_index and 2.5 <= (right - left) / sx <= 6.5 and 2.5 <= (bottom - top) / sy <= 6.5:
+                        stop_circles.append({
+                            "cx": f"{(tx + (left + right) / 2) / sx:.3f}",
+                            "cy": f"{(ty + (top + bottom) / 2) / sy:.3f}",
+                            "stroke": "#%02x%02x%02x" % color,
+                        })
+                    else:
+                        outlines.append(part)
+                attributes["d"] = "".join(outlines)
                 ET.SubElement(group, "path", attributes)
+
+# Native circles stay round even at maximum zoom. Draw in viewBox coordinates,
+# outside the trace's slightly non-uniform source-image scale.
+markers = ET.SubElement(svg, "g", {
+    "id": "stop-markers", "fill": "#241f31", "stroke-width": "1.8",
+})
+for attributes in stop_circles:
+    ET.SubElement(markers, "circle", {**attributes, "r": "3.1"})
 
 # Transfer-station outlines are white in the source and must be reconstructed
 # separately from the colored tram inks. These are stops, not rail annotations.

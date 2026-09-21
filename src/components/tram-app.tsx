@@ -215,9 +215,6 @@ export default function TramApp({ network }: { network: ReactNode }) {
               </svg>
               {listening ? "Pause listening" : "Start listening"}
             </button>
-            <span className="transport-caption">
-              {listening ? "Let the city compose" : "Or tap a stop to play"}
-            </span>
           </div>
           <div className="tuning-controls">
             <label className="control root-control">

@@ -10,7 +10,7 @@ export type ArrivalSnapshot = { generatedAt: number; arrivals: ArrivalEvent[] };
 export const POLL_INTERVAL_MS = 10_000;
 
 export function createSnapshotTracker() {
-  let primed = false;
+  let primed = true;
   let latest = 0;
   return {
     primeNext() {

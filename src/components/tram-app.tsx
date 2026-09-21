@@ -46,7 +46,16 @@ export default function TramApp({ network }: { network: ReactNode }) {
     getEngine().tune(root, scale);
   }, [root, scale, getEngine]);
 
+  useEffect(
+    () => () => {
+      void engine.current?.close();
+      engine.current = null;
+    },
+    [],
+  );
+
   useEffect(() => {
+    if (!listening) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let request: AbortController | undefined;
     let disposed = false;
@@ -109,10 +118,8 @@ export default function TramApp({ network }: { network: ReactNode }) {
       clearTimeout(timer);
       request?.abort();
       document.removeEventListener("visibilitychange", visibility);
-      void engine.current?.close();
-      engine.current = null;
     };
-  }, []);
+  }, [listening]);
 
   const preview = useCallback(
     async (key: string) => {

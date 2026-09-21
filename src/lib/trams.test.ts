@@ -196,9 +196,9 @@ describe("one logical stop, every platform", () => {
 });
 
 describe("snapshot replay", () => {
-  test("silently primes, then replays unchanged vehicles on every poll", () => {
+  test("plays immediately, then replays unchanged vehicles on every poll", () => {
     const tracker = createSnapshotTracker();
-    expect(tracker.consume(snapshot())).toEqual([]);
+    expect(tracker.consume(snapshot([valid, valid]))).toHaveLength(1);
     expect(
       tracker.consume(snapshot([valid, valid], now + 10_000)),
     ).toHaveLength(1);

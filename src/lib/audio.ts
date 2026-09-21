@@ -28,6 +28,12 @@ export function createAudioEngine(
 
   async function unlock() {
     if (!context) {
+      // iOS routes Web Audio as "ambient" by default, so the ringer silent
+      // switch mutes it. Ask for the playback category where supported.
+      const session = (
+        navigator as Navigator & { audioSession?: { type: string } }
+      ).audioSession;
+      if (session) session.type = "playback";
       context = new AudioContext({ latencyHint: "interactive" });
       const master = context.createGain();
       compressor = context.createDynamicsCompressor();

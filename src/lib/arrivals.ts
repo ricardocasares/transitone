@@ -7,9 +7,9 @@ export type ArrivalEvent = {
 };
 
 export type ArrivalSnapshot = { generatedAt: number; arrivals: ArrivalEvent[] };
+export const POLL_INTERVAL_MS = 10_000;
 
-export function createArrivalTracker() {
-  const seen = new Map<string, number>();
+export function createSnapshotTracker() {
   let primed = false;
   let latest = 0;
   return {
@@ -17,22 +17,18 @@ export function createArrivalTracker() {
       primed = false;
     },
     consume(snapshot: ArrivalSnapshot): ArrivalEvent[] {
-      if (snapshot.generatedAt <= latest && primed) return [];
-      latest = Math.max(latest, snapshot.generatedAt);
-      const next: ArrivalEvent[] = [];
-      for (const arrival of snapshot.arrivals) {
-        if (primed && !seen.has(arrival.key)) next.push(arrival);
-        seen.set(arrival.key, snapshot.generatedAt);
-      }
+      if (snapshot.generatedAt < latest) return [];
+      latest = snapshot.generatedAt;
+      const shouldPlay = primed;
       primed = true;
-      for (const [key, timestamp] of seen) {
-        if (
-          snapshot.generatedAt - timestamp > 6 * 60 * 60 * 1000 ||
-          seen.size > 10000
-        )
-          seen.delete(key);
-      }
-      return next;
+      // Replay vehicles on every poll, but not duplicate entities within a poll.
+      return shouldPlay
+        ? [
+            ...new Map(
+              snapshot.arrivals.map((event) => [event.key, event]),
+            ).values(),
+          ]
+        : [];
     },
   };
 }

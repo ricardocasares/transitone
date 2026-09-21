@@ -8,6 +8,7 @@ import {
 } from "./music";
 
 type Voice = {
+  stopKey: string;
   oscillator: OscillatorNode;
   gain: GainNode;
   start: number;
@@ -72,6 +73,7 @@ export function createAudioEngine(
     gain.gain.linearRampToValueAtTime(0, time + NOTE_LENGTH);
     oscillator.connect(filter).connect(gain).connect(pan).connect(compressor);
     const voice = {
+      stopKey,
       oscillator,
       gain,
       start: time,
@@ -116,7 +118,7 @@ export function createAudioEngine(
   return {
     unlock,
     playStop,
-    playArrivals(keys: string[]) {
+    playSnapshot(keys: string[]) {
       if (!context || context.state !== "running" || muted) return;
       const times = batchTimes(
         keys.length,
@@ -127,9 +129,19 @@ export function createAudioEngine(
       });
     },
     tune(nextRoot: number, nextScale: ScaleName) {
+      const pending = voices.filter(
+        (voice) => voice.live && voice.start > (context?.currentTime ?? 0),
+      );
       clear();
       root = nextRoot;
       scale = nextScale;
+      // Keep the remaining phrase in place when its tuning changes.
+      for (const voice of pending) {
+        queueEnd = Math.max(
+          queueEnd,
+          playStop(voice.stopKey, voice.start) ?? 0,
+        );
+      }
     },
     setVolume(next: number) {
       volume = next;

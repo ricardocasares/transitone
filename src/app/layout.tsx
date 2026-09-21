@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Kraków · Tram Tones",
   description:
-    "Listen to Kraków in motion. Every tram arrival plays a note on an interactive map of the city.",
+    "Listen to Kraków in motion. Each live snapshot of stopped trams becomes a musical phrase on an interactive map of the city.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

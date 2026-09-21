@@ -1,3 +1,5 @@
+import { POLL_INTERVAL_MS } from "./arrivals";
+
 export const ROOTS = [
   "C",
   "C♯",
@@ -38,13 +40,24 @@ export function nextBeat(time: number) {
   return Math.ceil(time / BEAT) * BEAT;
 }
 
-// Short notes leave headroom for immediate manual previews over live playback.
+// Fill almost the whole polling interval. Leave a subdivision for the note tail
+// and grid alignment; unusually large snapshots extend rather than drop notes.
 export function batchTimes(count: number, now: number): number[] {
   const first = nextBeat(now + 0.045);
-  return Array.from(
-    { length: count },
-    (_, i) => first + Math.floor(i / 4) * BEAT + (i % 4) * 0.035,
+  const subdivisions = Math.max(
+    Math.floor(POLL_INTERVAL_MS / 1000 / BEAT) - 1,
+    Math.ceil(count / 4),
   );
+  const times: number[] = [];
+  for (let beat = 0; beat < subdivisions; beat++) {
+    const notes =
+      Math.ceil(((beat + 1) * count) / subdivisions) -
+      Math.ceil((beat * count) / subdivisions);
+    for (let note = 0; note < notes; note++) {
+      times.push(first + beat * BEAT + (note * BEAT) / notes);
+    }
+  }
+  return times;
 }
 
 export type Reservation = { start: number; end: number; live: boolean };

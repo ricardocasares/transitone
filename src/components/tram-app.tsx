@@ -9,7 +9,11 @@ import {
   useState,
 } from "react";
 import { stops, stopsByKey } from "@/data/network";
-import { createArrivalTracker, isArrivalSnapshot } from "@/lib/arrivals";
+import {
+  createSnapshotTracker,
+  isArrivalSnapshot,
+  POLL_INTERVAL_MS,
+} from "@/lib/arrivals";
 import { type AudioEngine, createAudioEngine } from "@/lib/audio";
 import { ROOTS, SCALES, type ScaleName } from "@/lib/music";
 import TramMap, { type MapHandle } from "./tram-map";
@@ -40,7 +44,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
   const map = useRef<MapHandle>(null);
   const engine = useRef<AudioEngine | null>(null);
   const playing = useRef(false);
-  const tracker = useRef(createArrivalTracker());
+  const tracker = useRef(createSnapshotTracker());
   const [listening, setListening] = useState(false);
   const [muted, setMuted] = useState(false);
   const [root, setRoot] = useState(0);
@@ -105,7 +109,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
         setStatus("live");
         setUpdated(snapshot.generatedAt);
         if (playing.current)
-          engine.current?.playArrivals(arrivals.map((event) => event.stopKey));
+          engine.current?.playSnapshot(arrivals.map((event) => event.stopKey));
       } catch {
         if (!disposed && current === generation && !document.hidden) {
           setStatus("retrying");
@@ -114,7 +118,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
       } finally {
         clearTimeout(timeout);
         if (!disposed && current === generation && !document.hidden)
-          timer = setTimeout(poll, 10000);
+          timer = setTimeout(poll, POLL_INTERVAL_MS);
       }
     }
     function visibility() {
@@ -338,7 +342,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
         )}
       </footer>
       <div className="micro-footer">
-        <span>Arrivals become notes · 100 BPM</span>
+        <span>Snapshot replay · 100 BPM</span>
         <a href="https://gtfs.ztp.krakow.pl/" target="_blank" rel="noreferrer">
           Live data by ZTP Kraków <span aria-hidden="true">↗</span>
         </a>

@@ -1,6 +1,6 @@
 # Kraków Tram Tones
 
-A playable SVG tram network. Every logical stop has one sound, shared by all its platforms and directions. Live arrivals use only ZTP’s official tram feed; no simulated arrivals or GPS inference.
+A playable SVG tram network. Every logical stop has one sound, shared by all its platforms and directions. Each live snapshot of stopped trams becomes a musical phrase, using only ZTP’s official tram feed; no simulated vehicles or GPS inference.
 
 ## Run
 
@@ -25,7 +25,7 @@ Production requires Node 22+ (or Bun) and outbound HTTPS to `gtfs.ztp.krakow.pl`
 - `src/data/network.ts` contains the reference map’s names, positions, explicit aliases and stable note steps. `src/data/gtfs-stops.json` groups every row in the official tram `stops.txt` by its exact trimmed `stop_name`. Each platform ID is checked for unique ownership.
 - The checked-in mapping was generated on **21 September 2026**. Teatr Słowackiego has four IDs, all mapped to one sound. Stops missing from the active schedule, including Teatr Bagatela in this snapshot, remain visible and manually playable. New stops not present in the supplied diagram are not invented on the map.
 - `GET /api/arrivals` fetches `VehiclePositions_T.pb` with an eight-second timeout, decodes protobuf, validates fresh complete `STOPPED_AT` records, and resolves platform IDs to logical stops. Upstream failure returns HTTP 502 with `{ "error": "feed_unavailable" }`.
-- The browser polls approximately every ten seconds. It deduplicates by `(vehicleId, tripId, stopSequence)`, never by platform ID or logical stop. Separate trams at the same stop remain separate notes. Hidden tabs stop polling and clear scheduled audio; visibility resume and feed recovery silently re-prime.
+- The browser polls approximately every ten seconds and replays the **entire snapshot**, including vehicles already heard on a previous poll. A tram that remains at a platform sounds again in the next phrase. Duplicate records within one snapshot are deduplicated by `(vehicleId, tripId, stopSequence)`; separate trams at the same logical stop remain separate notes. Out-of-order snapshots are ignored; an unchanged timestamp is replayable while the feed is still fresh. Hidden tabs stop polling and clear scheduled audio; startup, visibility resume and feed recovery silently prime the next snapshot.
 - A ten-second sampled feed cannot guarantee detection of a stop served entirely between snapshots. This app does not infer missed arrivals.
 
 Regenerate the mapping when the schedule changes, then rebuild/redeploy:
@@ -42,7 +42,7 @@ The importer needs Ruby’s standard library, `curl`, and `unzip`. Unknown names
 
 Native Web Audio uses one gesture-unlocked context, filtered triangle voices with attack/release ramps, map-based stereo positioning, smoothed master gain, and a compressor. Default tuning is C major pentatonic. Four scale choices and all twelve roots are available.
 
-Live notes use the audio clock on a 100 BPM eighth-note grid: at most four arrivals per subdivision, with 35 ms offsets for gentle separation. The eight-voice limit includes manual notes and future reservations. Extreme manual bursts wait for a voice rather than clipping or cutting an existing note.
+Each snapshot is spread across approximately 9.6 seconds on a 100 BPM grid. Notes within each eighth-note subdivision are evenly spaced (typically two notes, 150 ms apart), not squeezed into a short burst. Every valid vehicle record in the phrase plays once, with at most four notes per subdivision. Unusually large snapshots extend the phrase rather than dropping notes; subsequent phrases queue behind them. The eight-voice limit includes manual notes and future reservations. Extreme manual bursts wait for a voice rather than clipping or cutting an existing note. This is a musical replay of **trams currently stopped**, not an instant one-off arrival alert; a note may play roughly ten seconds after its snapshot was received.
 
 Every trigger reaches `playStop(stopKey)` in `src/lib/audio.ts`. That is the replacement point for per-stop samples in v2. Sample assignment UI, sample loading, persistence, buses, and route planning are intentionally not implemented.
 
@@ -54,6 +54,6 @@ The development-only `scripts/trace-map.py` regenerates the vector from the orig
 
 ## Verification
 
-23 automated tests cover the CSV importer, platform ownership, deduplication, silent priming, invalid feeds, real timeout expiry, HTTP failure/recovery, scale pitches and scheduling limits. Lint, TypeScript and the production build pass.
+Automated tests cover the CSV importer, platform ownership, whole-snapshot replay, within-snapshot deduplication, silent priming, invalid feeds, real timeout expiry, HTTP failure/recovery, scale pitches and scheduling limits. Lint, TypeScript and the production build pass.
 
 Browser checks covered actual live arrivals, stop-dot clicks, Enter/Space previews, root/scale changes, mute, drag, wheel zoom, reset, and desktop (1440 × 900) and mobile-size (390 × 844) layouts without horizontal overflow. Physical multi-touch gestures and subjective sound quality still need a real-device listening check; viewport resizing is not a substitute for those.

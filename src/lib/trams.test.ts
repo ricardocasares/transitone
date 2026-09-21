@@ -12,7 +12,12 @@ import {
   stops,
   stopsByKey,
 } from "@/data/network";
-import { createArrivalTracker, isArrivalSnapshot } from "./arrivals";
+import {
+  createSnapshotTracker,
+  isArrivalSnapshot,
+  POLL_INTERVAL_MS,
+} from "./arrivals";
+import { createAudioEngine } from "./audio";
 import { decodeArrivals, fetchArrivals } from "./feed";
 import {
   availableTime,
@@ -113,27 +118,37 @@ describe("one logical stop, every platform", () => {
   });
 });
 
-describe("arrival transitions", () => {
-  test("silently primes, suppresses repeated snapshots and repeated records", () => {
-    const tracker = createArrivalTracker();
+describe("snapshot replay", () => {
+  test("silently primes, then replays unchanged vehicles on every poll", () => {
+    const tracker = createSnapshotTracker();
     expect(tracker.consume(snapshot())).toEqual([]);
-    expect(tracker.consume(snapshot([valid, valid], now + 10_000))).toEqual([]);
+    expect(
+      tracker.consume(snapshot([valid, valid], now + 10_000)),
+    ).toHaveLength(1);
     expect(tracker.consume(snapshot([], now + 20_000))).toEqual([]);
-    expect(tracker.consume(snapshot([valid], now + 30_000))).toEqual([]);
+    expect(tracker.consume(snapshot([valid], now + 30_000))).toHaveLength(1);
   });
-  test("changing platform ID does not replay; advancing sequence does", () => {
-    const tracker = createArrivalTracker();
+  test("an unchanged but still-fresh feed timestamp is replayable", () => {
+    const tracker = createSnapshotTracker();
+    tracker.consume(snapshot());
+    expect(tracker.consume(snapshot())).toHaveLength(1);
+    expect(tracker.consume(snapshot())).toHaveLength(1);
+  });
+  test("platform changes still resolve to one stop, without duplicates inside the phrase", () => {
+    const tracker = createSnapshotTracker();
     tracker.consume(snapshot());
     const otherPlatform = { ...valid, stopId: theatre.gtfsStopIds[1] };
-    expect(tracker.consume(snapshot([otherPlatform], now + 10_000))).toEqual(
-      [],
+    const events = tracker.consume(
+      snapshot([valid, otherPlatform], now + 10_000),
     );
+    expect(events).toHaveLength(1);
+    expect(events[0].stopKey).toBe(theatre.key);
     const next = { ...otherPlatform, currentStopSequence: 6 };
     expect(tracker.consume(snapshot([next], now + 20_000))).toHaveLength(1);
-    expect(tracker.consume(snapshot([next], now + 30_000))).toHaveLength(0);
+    expect(tracker.consume(snapshot([next], now + 30_000))).toHaveLength(1);
   });
   test("distinct trams at the same stop stay separate; duplicate entities don't", () => {
-    const tracker = createArrivalTracker();
+    const tracker = createSnapshotTracker();
     tracker.consume(snapshot([]));
     const another = { ...valid, vehicle: { id: "tram-2" } };
     const events = tracker.consume(
@@ -143,22 +158,25 @@ describe("arrival transitions", () => {
     expect(events.map((e) => e.stopKey)).toEqual([theatre.key, theatre.key]);
     expect(events[0].key).not.toBe(events[1].key);
   });
-  test("new trip, same tram and sequence, is a new arrival", () => {
-    const tracker = createArrivalTracker();
+  test("a new trip is included with the rest of the snapshot", () => {
+    const tracker = createSnapshotTracker();
     tracker.consume(snapshot());
     expect(
       tracker.consume(
-        snapshot([{ ...valid, trip: { tripId: "new-trip" } }], now + 10_000),
+        snapshot(
+          [valid, { ...valid, trip: { tripId: "new-trip" } }],
+          now + 10_000,
+        ),
       ),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
   });
   test("visibility resume and recovery silently re-prime", () => {
-    const tracker = createArrivalTracker();
+    const tracker = createSnapshotTracker();
     tracker.consume(snapshot());
     tracker.primeNext();
     const next = { ...valid, currentStopSequence: 8 };
     expect(tracker.consume(snapshot([next], now + 60_000))).toEqual([]);
-    expect(tracker.consume(snapshot([next], now + 70_000))).toEqual([]);
+    expect(tracker.consume(snapshot([next], now + 70_000))).toHaveLength(1);
     expect(
       tracker.consume(
         snapshot([{ ...next, currentStopSequence: 9 }], now + 80_000),
@@ -166,13 +184,17 @@ describe("arrival transitions", () => {
     ).toHaveLength(1);
   });
   test("ignores snapshots arriving out of order", () => {
-    const tracker = createArrivalTracker();
+    const tracker = createSnapshotTracker();
     tracker.consume(snapshot());
     expect(
       tracker.consume(
         snapshot([{ ...valid, currentStopSequence: 2 }], now - 10_000),
       ),
     ).toEqual([]);
+    tracker.primeNext();
+    expect(tracker.consume(snapshot([valid], now - 10_000))).toEqual([]);
+    expect(tracker.consume(snapshot([valid], now + 10_000))).toEqual([]);
+    expect(tracker.consume(snapshot([valid], now + 20_000))).toHaveLength(1);
   });
 });
 
@@ -314,17 +336,37 @@ describe("musical scheduling", () => {
       }
     }
   });
-  test("100 BPM eighth notes, at most four staggered arrivals each", () => {
-    const times = batchTimes(37, 10.123);
+  test("a full snapshot spans the polling interval rather than a short burst", () => {
+    const times = batchTimes(62, 10.123);
     expect(BEAT).toBe(0.3);
+    expect(times).toHaveLength(62);
     expect(times[0]).toBeCloseTo(10.2);
-    expect(times[1] - times[0]).toBeCloseTo(0.035);
+    expect(times[1] - times[0]).toBeCloseTo(0.15);
+    expect(times[times.length - 1] - times[0]).toBeGreaterThan(9);
+    expect(times[times.length - 1] + NOTE_LENGTH - 10.123).toBeLessThan(
+      POLL_INTERVAL_MS / 1000,
+    );
+    expect(times.every((time, i) => i === 0 || time > times[i - 1])).toBe(true);
+  });
+  test("sparse, empty and single-stop snapshots have no invented notes", () => {
+    expect(batchTimes(0, 0)).toEqual([]);
+    expect(batchTimes(1, 0)).toEqual([0.3]);
+    for (const count of [13, 17, 37]) {
+      const times = batchTimes(count, 0);
+      expect(times).toHaveLength(count);
+      expect(times[times.length - 1] - times[0]).toBeGreaterThan(8.5);
+    }
+  });
+  test("large snapshots keep every note and at most four notes per subdivision", () => {
+    const times = batchTimes(150, 0);
+    expect(times).toHaveLength(150);
     const beats = new Map<number, number>();
     for (const time of times) {
       const beat = Math.floor((time + 1e-8) / BEAT);
       beats.set(beat, (beats.get(beat) ?? 0) + 1);
     }
     expect(Math.max(...beats.values())).toBe(4);
+    expect(times.at(-1)).toBeGreaterThan(10);
   });
   test("manual previews are immediate and unquantized in normal playback", () => {
     const voices = batchTimes(40, 0).map((start) => ({
@@ -336,7 +378,7 @@ describe("musical scheduling", () => {
   });
   test("dense live and manual bursts never exceed eight overlapping voices or four live notes per subdivision", () => {
     const voices: Reservation[] = [];
-    for (const requested of batchTimes(40, 0)) {
+    for (const requested of batchTimes(128, 0)) {
       const start = availableTime(voices, requested, true);
       voices.push({ start, end: start + NOTE_LENGTH, live: true });
     }
@@ -358,4 +400,107 @@ describe("musical scheduling", () => {
       ).toBeLessThanOrEqual(4);
     }
   });
+});
+
+test("audio replays full snapshots, preserves pending notes when retuning, and clears on mute", async () => {
+  function param() {
+    return {
+      value: 0,
+      setValueAtTime() {},
+      linearRampToValueAtTime() {},
+      exponentialRampToValueAtTime() {},
+      setTargetAtTime() {},
+      cancelAndHoldAtTime() {},
+    };
+  }
+  function node() {
+    return {
+      connect<T>(target: T) {
+        return target;
+      },
+      disconnect() {},
+      type: "",
+      gain: param(),
+      frequency: param(),
+      pan: param(),
+      threshold: param(),
+      knee: param(),
+      ratio: param(),
+      attack: param(),
+      release: param(),
+      startTime: -1,
+      stopTime: -1,
+      start(time: number) {
+        this.startTime = time;
+      },
+      stop(time: number) {
+        this.stopTime = time;
+      },
+    };
+  }
+  const oscillators: ReturnType<typeof node>[] = [];
+  let clock = 10;
+  let contexts = 0;
+  const original = globalThis.AudioContext;
+  globalThis.AudioContext = class {
+    constructor() {
+      contexts++;
+    }
+    get currentTime() {
+      return clock;
+    }
+    state = "running";
+    destination = node();
+    createGain = node;
+    createBiquadFilter = node;
+    createStereoPanner = node;
+    createDynamicsCompressor = node;
+    createOscillator() {
+      const oscillator = node();
+      oscillators.push(oscillator);
+      return oscillator;
+    }
+    async close() {
+      this.state = "closed";
+    }
+  } as unknown as typeof AudioContext;
+  const engine = createAudioEngine(() => {});
+  try {
+    expect(contexts).toBe(0);
+    await engine.unlock();
+    await engine.unlock();
+    expect(contexts).toBe(1);
+    const keys = Array.from({ length: 62 }, () => theatre.key);
+    engine.playSnapshot(keys);
+    expect(oscillators).toHaveLength(62);
+    expect(oscillators.map((o) => o.startTime)).toEqual(batchTimes(62, clock));
+    const oldFrequency = oscillators[0].frequency.value;
+    clock = 11;
+    const pending = oscillators
+      .filter((o) => o.startTime > clock)
+      .map((o) => o.startTime);
+    engine.tune(2, "Major pentatonic");
+    expect(oscillators.slice(62).map((o) => o.startTime)).toEqual(pending);
+    expect(oscillators[62].frequency.value / oldFrequency).toBeCloseTo(
+      2 ** (2 / 12),
+    );
+    clock = 20;
+    const before = oscillators.length;
+    engine.playSnapshot(keys);
+    expect(oscillators.length - before).toBe(62);
+    engine.playStop(theatre.key);
+    expect(oscillators[oscillators.length - 1].startTime).toBeCloseTo(
+      clock + 0.012,
+    );
+    const beforeMute = oscillators.length;
+    engine.setMuted(true);
+    engine.playSnapshot(keys);
+    expect(oscillators).toHaveLength(beforeMute);
+    expect(oscillators[oscillators.length - 1].stopTime).toBeCloseTo(
+      clock + 0.02,
+    );
+  } finally {
+    await engine.close();
+    globalThis.AudioContext = original;
+  }
 });

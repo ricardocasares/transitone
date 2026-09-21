@@ -124,7 +124,7 @@ group(
   "start",
   true,
 );
-group([["Plac Wszystkich Świętych", 528, 712, 528, 746]], 0, "middle");
+group([["Plac Wszystkich Świętych", 528, 712, 528, 746]], 0, "end");
 group([["Lubicz", 743, 532, 743, 501]], 0, "middle");
 group([
   ["Cmentarz Rakowicki", 802, 341, 813, 345],
@@ -207,17 +207,17 @@ group(
   [
     ["Rondo Grunwaldzkie", 446, 856, 446, 836],
     ["Orzeszkowej", 475, 856, 475, 836],
-    ["Szwedzka", 416, 867, 416, 848],
-    ["Kapelanka", 394, 889, 394, 870],
-    ["Słomiana", 375, 908, 375, 889],
-    ["Kobierzyńska", 310, 946, 310, 931],
-    ["Lipińskiego", 294, 962, 294, 945],
-    ["Grota-Roweckiego", 274, 982, 274, 965],
-    ["Norymberska", 252, 1004, 252, 987],
-    ["Ruczaj", 230, 1026, 230, 1009],
-    ["Kampus UJ", 209, 1047, 209, 1030],
-    ["Chmieleniec", 196, 1060, 196, 1043],
-    ["Czerwone Maki", 185, 1071, 182, 1053],
+    ["Szwedzka", 416, 867, 402, 853],
+    ["Kapelanka", 394, 889, 380, 875],
+    ["Słomiana", 375, 908, 361, 894],
+    ["Kobierzyńska", 310, 946, 296, 932],
+    ["Lipińskiego", 294, 962, 280, 948],
+    ["Grota-Roweckiego", 274, 982, 260, 968],
+    ["Norymberska", 252, 1004, 238, 990],
+    ["Ruczaj", 230, 1026, 216, 1012],
+    ["Kampus UJ", 209, 1047, 195, 1033],
+    ["Chmieleniec", 196, 1060, 182, 1046],
+    ["Czerwone Maki", 185, 1071, 171, 1057],
   ],
   45,
   "end",

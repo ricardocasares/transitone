@@ -1,11 +1,23 @@
 import platformGroups from "./gtfs-stops.json";
 
+// Hubs anchor the groove, line ends accent it, everything else fills in.
+export type Role = "kick" | "snare" | "hihat" | "bass" | "lead";
+export const ROLES: Role[] = ["kick", "snare", "hihat", "bass", "lead"];
+export const ROLE_LABEL: Record<Role, string> = {
+  kick: "Kick",
+  snare: "Snare",
+  hihat: "Hi-hat",
+  bass: "Bass",
+  lead: "Lead",
+};
+
 export type StopNode = {
   key: string;
   label: string;
   gtfsNames: string[];
   gtfsStopIds: string[];
   noteStep: number;
+  role: Role;
   x: number;
   y: number;
   labelX: number;
@@ -365,6 +377,36 @@ const aliases: Record<string, string[]> = {
   Wiadukty: ["Wiadukty"],
 };
 
+// End-of-line loops on the reference map. The diagram has no line topology, so
+// termini are listed by hand; hubs take precedence when a stop is both.
+const termini = new Set([
+  "Górka Narodowa",
+  "Krowodrza Górka",
+  "Bronowice Małe",
+  "Cichy Kącik",
+  "Salwator Pętla",
+  "Salwator", // Same loop; the map draws both ends of it.
+  "Czerwone Maki",
+  "Borek Fałęcki",
+  "Kurdwanów",
+  "Nowy Bieżanów",
+  "Mały Płaszów",
+  "Dąbie",
+  "Cmentarz Rakowicki",
+  "Mistrzejowice",
+  "Os. Piastów",
+  "Wzgórza Krzesławickie",
+  "Kombinat",
+  "Kopiec Wandy",
+  "Pleszów",
+]);
+function roleFor(label: string, hub: boolean, hash: number): Role {
+  if (hub) return "kick";
+  if (termini.has(label)) return "snare";
+  // Half the mid-line stops carry the melody; the rest split hats and bass.
+  return (["lead", "lead", "hihat", "bass"] as const)[hash % 4];
+}
+
 const groups = platformGroups as Record<string, string[]>;
 export const mapStops: StopNode[] = positions.map((row) => {
   const [label, x, y, labelX = x + 12, labelY = y + 4] = row;
@@ -379,6 +421,7 @@ export const mapStops: StopNode[] = positions.map((row) => {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+  const hash = [...key].reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return {
     key,
     label,
@@ -392,7 +435,8 @@ export const mapStops: StopNode[] = positions.map((row) => {
     hub: row.hub ?? false,
     gtfsNames,
     gtfsStopIds: [...new Set(gtfsNames.flatMap((name) => groups[name] ?? []))],
-    noteStep: [...key].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 16,
+    noteStep: hash % 16,
+    role: roleFor(label, row.hub ?? false, hash),
   };
 });
 

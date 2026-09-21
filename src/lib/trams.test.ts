@@ -8,6 +8,7 @@ import { GET } from "@/app/api/arrivals/route";
 import {
   buildStopIndex,
   mapStops,
+  type Role,
   stopKeyByPlatform,
   stops,
   stopsByKey,
@@ -20,12 +21,14 @@ import {
 import { createAudioEngine } from "./audio";
 import { decodeArrivals, fetchArrivals } from "./feed";
 import {
+  arrangeTimes,
   availableTime,
   BEAT,
   batchTimes,
   NOTE_LENGTH,
   pitch,
   type Reservation,
+  ROLE_LENGTH,
   ROOTS,
   SCALES,
 } from "./music";
@@ -191,7 +194,26 @@ describe("one logical stop, every platform", () => {
     const salwator = mapStops.filter((s) => s.key === "salwator");
     expect(salwator).toHaveLength(2);
     expect(salwator[0].noteStep).toBe(salwator[1].noteStep);
+    expect(salwator[0].role).toBe(salwator[1].role);
     expect(salwator[0].gtfsStopIds).toEqual(salwator[1].gtfsStopIds);
+  });
+  test("roles follow the network: hubs kick, line ends snare, the rest fill", () => {
+    for (const stop of stops) {
+      if (stop.hub) expect(stop.role).toBe("kick");
+      else expect(stop.role).not.toBe("kick");
+    }
+    expect(stopsByKey.get("teatr-slowackiego")?.role).toBe("kick");
+    expect(stopsByKey.get("czerwone-maki")?.role).toBe("snare");
+    expect(stopsByKey.get("pleszow")?.role).toBe("snare");
+    // Dworzec Towarowy is both; the interchange wins.
+    expect(stopsByKey.get("dworzec-towarowy")?.role).toBe("kick");
+    const counts = new Map<string, number>();
+    for (const stop of stops)
+      counts.set(stop.role, (counts.get(stop.role) ?? 0) + 1);
+    for (const role of ["kick", "snare", "hihat", "bass", "lead"])
+      expect(counts.get(role) ?? 0).toBeGreaterThan(0);
+    // Melody stays the majority so phrases keep a tonal centre.
+    expect(counts.get("lead") ?? 0).toBeGreaterThan(stops.length / 3);
   });
 });
 
@@ -396,6 +418,13 @@ describe("realtime validation", () => {
 });
 
 describe("musical scheduling", () => {
+  test("bass voices sit one octave below the lead", () => {
+    const lead = pitch(3, 2, "Major");
+    const bass = pitch(3, 2, "Major", -12);
+    expect(lead.frequency / bass.frequency).toBeCloseTo(2);
+    expect(bass.name).toBe("G2");
+    expect(lead.name).toBe("G3");
+  });
   test("all roots and scales transpose cleanly", () => {
     expect(ROOTS).toHaveLength(12);
     expect(pitch(0, 0, "Major pentatonic").name).toBe("C3");
@@ -444,6 +473,67 @@ describe("musical scheduling", () => {
     }
     expect(Math.max(...beats.values())).toBe(4);
     expect(times.at(-1)).toBeGreaterThan(10);
+  });
+  function grid(roles: Role[], times: number[]) {
+    const first = Math.ceil(0.045 / BEAT) * BEAT;
+    const beats: Role[][] = [];
+    times.forEach((time, i) => {
+      const beat = Math.floor((time - first) / BEAT + 1e-6);
+      beats[beat] ??= [];
+      beats[beat].push(roles[i]);
+    });
+    return beats;
+  }
+  const kit = (pattern: string) =>
+    [...pattern].map(
+      (c) =>
+        ({ k: "kick", s: "snare", b: "bass", h: "hihat", l: "lead" })[
+          c
+        ] as Role,
+    );
+  test("the rhythm section lands on its beats and spreads across the bars", () => {
+    const roles = kit("kkkkssssbbbbhhhhhhhhllllllllllll");
+    const beats = grid(roles, arrangeTimes(roles, 0));
+    // Four kicks and four basses share the downbeat of each of the four bars.
+    for (const bar of [0, 8, 16, 24]) {
+      expect(beats[bar]).toContain("kick");
+      expect(beats[bar]).toContain("bass");
+      // Snares answer on beat two of each bar.
+      expect(beats[bar + 2]).toContain("snare");
+    }
+    // Hi-hats only sit on the off-beats while there is room there.
+    expect(beats.flat().filter((role) => role === "hihat")).toHaveLength(8);
+    for (const [index, beat] of beats.entries())
+      if (beat?.includes("hihat")) expect(index % 2).toBe(1);
+  });
+  test("arrangement keeps every note, in feed order within a role, and honours capacity", () => {
+    const roles = kit("k".repeat(40) + "s".repeat(30) + "l".repeat(100));
+    const times = arrangeTimes(roles, 0);
+    expect(times).toHaveLength(170);
+    expect(times.every((t) => Number.isFinite(t))).toBe(true);
+    const beats = grid(roles, times);
+    expect(Math.max(...beats.map((b) => b?.length ?? 0))).toBe(4);
+    expect(beats.length).toBe(Math.ceil(170 / 4));
+    // Spill-over: forty kicks exceed the downbeats, so some land elsewhere,
+    // but the downbeats are all taken first.
+    for (const index of beats.keys())
+      if (index % 8 === 0) expect(beats[index]).toContain("kick");
+    // An all-lead phrase is the classic even spread.
+    expect(arrangeTimes(kit("llll"), 10)).toEqual(batchTimes(4, 10));
+  });
+  test("percussion holds a voice slot only as long as it sounds", () => {
+    expect(ROLE_LENGTH.hihat).toBeLessThan(ROLE_LENGTH.kick);
+    expect(ROLE_LENGTH.lead).toBe(NOTE_LENGTH);
+    // Eight hi-hats fit before a lead where eight leads would not.
+    const hats: Reservation[] = Array.from({ length: 8 }, () => ({
+      start: 1,
+      end: 1 + ROLE_LENGTH.hihat,
+      live: false,
+    }));
+    expect(availableTime(hats, 1 + ROLE_LENGTH.hihat, false)).toBeCloseTo(
+      1 + ROLE_LENGTH.hihat,
+    );
+    expect(availableTime(hats, 1, false, ROLE_LENGTH.lead)).toBeGreaterThan(1);
   });
   test("manual previews are immediate and unquantized in normal playback", () => {
     const voices = batchTimes(40, 0).map((start) => ({
@@ -499,7 +589,9 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
       type: "",
       gain: param(),
       frequency: param(),
+      Q: param(),
       pan: param(),
+      buffer: null,
       threshold: param(),
       knee: param(),
       ratio: param(),
@@ -516,6 +608,7 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
     };
   }
   const oscillators: ReturnType<typeof node>[] = [];
+  const noises: ReturnType<typeof node>[] = [];
   const gains: ReturnType<typeof node>[] = [];
   let clock = 10;
   let contexts = 0;
@@ -528,7 +621,16 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
       return clock;
     }
     state = "running";
+    sampleRate = 48000;
     destination = node();
+    createBuffer(_channels: number, length: number) {
+      return { getChannelData: () => new Float32Array(length) };
+    }
+    createBufferSource() {
+      const source = node();
+      noises.push(source);
+      return source;
+    }
     createGain() {
       const gain = node();
       gains.push(gain);
@@ -546,6 +648,8 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
       this.state = "closed";
     }
   } as unknown as typeof AudioContext;
+  const lead = stops.find((stop) => stop.role === "lead");
+  assert(lead);
   const engine = createAudioEngine(() => {});
   try {
     expect(contexts).toBe(0);
@@ -553,7 +657,7 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
     await engine.unlock();
     expect(contexts).toBe(1);
     expect(gains[0].gain.value).toBe(0.65);
-    const keys = Array.from({ length: 62 }, () => theatre.key);
+    const keys = Array.from({ length: 62 }, () => lead.key);
     engine.playSnapshot(keys);
     expect(oscillators).toHaveLength(62);
     expect(oscillators.map((o) => o.startTime)).toEqual(batchTimes(62, clock));
@@ -571,7 +675,7 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
     const before = oscillators.length;
     engine.playSnapshot(keys);
     expect(oscillators.length - before).toBe(62);
-    engine.playStop(theatre.key);
+    engine.playStop(lead.key);
     expect(oscillators[oscillators.length - 1].startTime).toBeCloseTo(
       clock + 0.012,
     );
@@ -579,6 +683,15 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
     expect(oscillators[oscillators.length - 1].stopTime).toBeCloseTo(
       clock + 0.02,
     );
+    // Drums: the kick is a pitched-down sine, hats and snares are noise.
+    expect(noises).toHaveLength(0);
+    engine.playStop(theatre.key);
+    expect(oscillators[oscillators.length - 1].frequency.value).toBe(150);
+    const hihat = stops.find((stop) => stop.role === "hihat");
+    assert(hihat);
+    engine.playStop(hihat.key);
+    expect(noises).toHaveLength(1);
+    expect(noises[0].startTime).toBeCloseTo(clock + 0.012);
   } finally {
     await engine.close();
     globalThis.AudioContext = original;

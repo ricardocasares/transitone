@@ -109,6 +109,40 @@ a:focus-visible {
 .map-stop:focus-visible text {
   fill: #fff;
 }
+/* Rhythm-section stops read differently from melodic ones. */
+.map-stop[data-role="kick"] .stop-focus,
+.map-stop[data-role="kick"] .stop-pulse,
+.map-stop[data-role="snare"] .stop-focus,
+.map-stop[data-role="snare"] .stop-pulse {
+  stroke: #f7c59f;
+  fill: #f7c59f26;
+}
+.map-stop[data-role="hihat"] .stop-focus,
+.map-stop[data-role="hihat"] .stop-pulse {
+  stroke: #9fd9f7;
+  fill: #9fd9f726;
+}
+.map-stop[data-role="bass"] .stop-focus,
+.map-stop[data-role="bass"] .stop-pulse {
+  stroke: #c9a3f7;
+  fill: #c9a3f726;
+}
+.note-chip[data-role="kick"],
+.note-chip[data-role="snare"] {
+  color: #f7c59f;
+  background: #f7c59f12;
+  border-color: #f7c59f23;
+}
+.note-chip[data-role="hihat"] {
+  color: #9fd9f7;
+  background: #9fd9f712;
+  border-color: #9fd9f723;
+}
+.note-chip[data-role="bass"] {
+  color: #c9a3f7;
+  background: #c9a3f712;
+  border-color: #c9a3f723;
+}
 .stop-pulse {
   fill: #d3efb526;
   stroke: var(--accent);

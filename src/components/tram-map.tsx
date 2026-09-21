@@ -8,7 +8,7 @@ import {
   useImperativeHandle,
   useRef,
 } from "react";
-import { mapStops, stopsByKey } from "@/data/network";
+import { mapStops, ROLE_LABEL, stopsByKey } from "@/data/network";
 import { INITIAL, resizeView, type View, zoomView } from "@/lib/map-view";
 
 type Point = { x: number; y: number };
@@ -236,6 +236,7 @@ const TramMap = memo(
               key={`${stop.key}-${stop.x}`}
               className={`map-stop${stop.hub ? " interchange" : ""}`}
               data-stop-key={stop.key}
+              data-role={stop.role}
               role="button"
               tabIndex={0}
               aria-label={`Play ${stop.label}`}
@@ -266,7 +267,7 @@ const TramMap = memo(
               }}
             >
               <title>
-                {`${stop.label} · ${stopsByKey.get(stop.key)?.gtfsStopIds.length || "No current"} platforms`}
+                {`${stop.label} · ${ROLE_LABEL[stop.role]} · ${stopsByKey.get(stop.key)?.gtfsStopIds.length || "No current"} platforms`}
               </title>
               <circle
                 className="stop-pulse"

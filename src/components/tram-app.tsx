@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { stops, stopsByKey } from "@/data/network";
+import { type Role, stops, stopsByKey } from "@/data/network";
 import {
   createSnapshotTracker,
   isArrivalSnapshot,
@@ -28,6 +28,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
   const [recent, setRecent] = useState<{
     label: string;
     note: string;
+    role: Role;
     id: number;
   } | null>(null);
   const [error, setError] = useState("");
@@ -37,7 +38,13 @@ export default function TramApp({ network }: { network: ReactNode }) {
       engine.current = createAudioEngine((key, note) => {
         map.current?.pulse(key);
         const stop = stopsByKey.get(key);
-        if (stop) setRecent({ label: stop.label, note, id: performance.now() });
+        if (stop)
+          setRecent({
+            label: stop.label,
+            note,
+            role: stop.role,
+            id: performance.now(),
+          });
       });
     return engine.current;
   }, []);
@@ -210,12 +217,14 @@ export default function TramApp({ network }: { network: ReactNode }) {
             </span>
             {recent ? (
               <div className="recent-note" key={recent.id}>
-                <span className="note-chip">{recent.note}</span>
+                <span className="note-chip" data-role={recent.role}>
+                  {recent.note}
+                </span>
                 <span>{recent.label}</span>
               </div>
             ) : (
               <div className="ready-text">
-                {stops.length} stops. One instrument.
+                {stops.length} stops. Five voices.
               </div>
             )}
           </div>

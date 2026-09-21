@@ -40,7 +40,8 @@ test("traced stop markers are native, unscaled SVG circles", () => {
   const markers = svg.match(/<g id="stop-markers"[^>]*>([\s\S]*?)<\/g>/)?.[1];
   assert(markers);
   const circles = [...markers.matchAll(/<circle\b([^>]*)\/>/g)];
-  expect(circles).toHaveLength(474);
+  expect(circles).toHaveLength(476);
+  const zusColors: string[] = [];
   for (const [, attributes] of circles) {
     expect(attributes).toContain('r="3.1"');
     expect(attributes).toMatch(/stroke="#[\da-f]{6}"/);
@@ -48,10 +49,18 @@ test("traced stop markers are native, unscaled SVG circles", () => {
     const x = Number(attributes.match(/cx="([\d.]+)"/)?.[1]);
     const y = Number(attributes.match(/cy="([\d.]+)"/)?.[1]);
     expect(x > 0 && x < 1778 && y > 0 && y < 1408).toBe(true);
+    if (x > 308 && x < 336 && y > 1097 && y < 1125) {
+      zusColors.push(attributes.match(/stroke="([^"]+)"/)?.[1] ?? "");
+      expect(x - y).toBeCloseTo(-788.851, 3);
+    }
   }
+  expect(zusColors.sort()).toEqual(
+    ["#ffcb00", "#abd39d", "#28bc92", "#1470e0", "#364a74"].sort(),
+  );
+  expect(svg.match(/clip-path="url\(#zus-original-markers\)"/g)).toHaveLength(5);
 });
 
-test("tunnels use matching smooth strokes with a uniform center gap", () => {
+test("tunnels share a continuous outer stroke with their solid approaches", () => {
   const svg = readFileSync(
     new URL("../../public/tram-network.svg", import.meta.url),
     "utf8",
@@ -63,10 +72,13 @@ test("tunnels use matching smooth strokes with a uniform center gap", () => {
   for (let i = 0; i < paths.length; i += 2) {
     const outer = paths[i][1];
     const inner = paths[i + 1][1];
-    const centerline = outer.match(/d="([^"]+)"/)?.[1];
+    const outline = outer.match(/d="([^"]+)"/)?.[1];
+    const centerline = inner.match(/d="([^"]+)"/)?.[1];
+    assert(outline && centerline);
     expect(centerline).toMatch(/[CQ]/);
-    expect(inner.match(/d="([^"]+)"/)?.[1]).toBe(centerline);
-    expect(outer).toContain('stroke-width="3.8"');
+    expect(outline).toContain(centerline.replace(/^M/, "L"));
+    expect(outline.endsWith(centerline.slice(1))).toBe(false);
+    expect(outer).toContain('stroke-width="4.2"');
     expect(inner).toContain('stroke="#241f31" stroke-width="1.2"');
     if (i < 8) {
       expect(outer).toContain('clip-path="url(#tunnel-crossings)"');
@@ -74,6 +86,10 @@ test("tunnels use matching smooth strokes with a uniform center gap", () => {
     }
   }
   expect(svg).toContain('<clipPath id="tunnel-crossings">');
+  expect(svg).toContain("M621 378H628V469H621Z");
+  expect(svg.match(/clip-path="url\(#tunnel-south-surface\)"/g)).toHaveLength(
+    3,
+  );
   expect(svg).toContain('clip-rule="evenodd"');
 });
 

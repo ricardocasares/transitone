@@ -90,16 +90,38 @@ svg = ET.Element("svg", {
 ET.SubElement(svg, "title").text = "Kraków tram network — traced from the supplied reference"
 # Hollow tunnel strokes are too thin to trace cleanly. Their isolated raster
 # contours are replaced below with centerlines measured from the reference.
-# (ink, contour bounds, centerline). Stop circles still come from the trace.
+# (ink, contour bounds, solid approach, tunnel centerline, solid exit).
+# The outer stroke spans all three parts; only the tunnel gets a center gap.
+# Stop circles still come from the trace.
 tunnels = [
-    ("#ff9800", (610, 378, 895, 467), "M646.468 376.5 V408 C646.468 422.256 646.468 422.256 661 422.256 H860 Q890.9 422.256 890.9 453.1 V468.5"),
-    ("#ff6a46", (610, 378, 895, 467), "M639.088 376.5 V408 C639.088 429.894 639.088 429.894 661 429.894 H860 Q883.4 429.894 883.4 453.1 V468.5"),
-    ("#af6438", (610, 378, 895, 467), "M631.571 376.5 V408 C631.571 437.428 631.571 437.428 661 437.428 H860 Q876.1 437.428 876.1 453.1 V468.5"),
-    ("#364a74", (610, 378, 895, 467), "M616.804 376.5 V408 C616.804 444.706 616.804 444.706 654 444.706 H860 Q868.8 444.706 868.8 453.1 V468.5"),
-    ("#28bc92", (324, 1184, 424, 1213), "M325.5 1184.7 L341 1200.2 Q348.5 1207.675 360.5 1207.675 H425.8"),
-    ("#ff9800", (320, 1189, 424, 1220), "M320.8 1190.4 L335.8 1205.4 Q345.8 1215.198 360.5 1215.198 H425.8"),
-    ("#ffcb00", (314, 1194, 424, 1228), "M315.4 1195.05 L330.5 1210.15 Q342.8 1222.835 360.5 1222.835 H425.8"),
+    ("#ff9800", (550, 320, 895, 504), "M549.5 326 H610 Q646.468 326 646.468 362", "M646.468 376.5 V408 C646.468 422.256 646.468 422.256 661 422.256 H860 Q890.9 422.256 890.9 453.1 V468.5", "V504.5"),
+    ("#ff6a46", (550, 320, 895, 504), "M549.5 333.5 H610 Q639.088 333.5 639.088 362", "M639.088 376.5 V408 C639.088 429.894 639.088 429.894 661 429.894 H860 Q883.4 429.894 883.4 453.1 V468.5", "V504.5"),
+    ("#af6438", (550, 320, 895, 504), "M549.5 341 H610 Q631.571 341 631.571 362", "M631.571 376.5 V408 C631.571 437.428 631.571 437.428 661 437.428 H860 Q876.1 437.428 876.1 453.1 V468.5", "V504.5"),
+    ("#364a74", (550, 320, 895, 504), "M549.5 355.8 H608 Q616.804 355.8 616.804 366", "M616.804 376.5 V408 C616.804 444.706 616.804 444.706 654 444.706 H860 Q868.8 444.706 868.8 453.1 V468.5", "V504.5"),
+    ("#28bc92", (300, 1160, 424, 1213), "M300.7 1159.9", "M325.5 1184.7 L341 1200.2 Q348.5 1207.675 360.5 1207.675 H425.8", "H461.1"),
+    ("#ff9800", (295, 1165, 424, 1220), "M295.55 1165.15", "M320.8 1190.4 L335.8 1205.4 Q345.8 1215.198 360.5 1215.198 H425.8", "H461.1"),
+    ("#ffcb00", (290, 1170, 424, 1228), "M290.5 1170.15", "M315.4 1195.05 L330.5 1210.15 Q342.8 1222.835 360.5 1222.835 H425.8", "H461.1"),
 ]
+defs = ET.SubElement(svg, "defs")
+# The source uses triangles at Łagiewniki ZUS. Replace their entire silhouettes,
+# including the three previously detected holes, with five aligned circle stops.
+zus_stops = [
+    ("#ffcb00", 311.620, 1100.471), ("#abd39d", 316.794, 1105.645),
+    ("#28bc92", 321.968, 1110.819), ("#1470e0", 327.142, 1115.993),
+    ("#364a74", 332.316, 1121.167),
+]
+zus_clip = ET.SubElement(defs, "clipPath", {"id": "zus-original-markers"})
+ET.SubElement(zus_clip, "path", {
+    "d": "M0 0H1778V1408H0Z M303.84 1101.18L312.33 1092.69L340.10 1120.46L331.61 1128.95Z",
+    "clip-rule": "evenodd",
+})
+# Cut the old southern surface strokes back to the interchange border and the
+# next stop circle, so no raster-traced shoulders remain at the tunnel portals.
+surface_clip = ET.SubElement(defs, "clipPath", {"id": "tunnel-south-surface"})
+ET.SubElement(surface_clip, "path", {
+    "d": "M0 0H1778V1408H0Z M282.404 1178.309L312.809 1147.904L350 1185H461.1V1230H330Z",
+    "clip-rule": "evenodd",
+})
 stop_circles = []
 replaced_contours = 0
 with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
@@ -119,7 +141,13 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
             filter_speckle=8, corner_threshold=60, length_threshold=2,
             max_iterations=10, splice_threshold=45, path_precision=2,
         )
-        group = ET.SubElement(svg, "g", {
+        ink = "#%02x%02x%02x" % color
+        parent = svg
+        if ink in {"#28bc92", "#ff9800", "#ffcb00"}:
+            parent = ET.SubElement(svg, "g", {"clip-path": "url(#tunnel-south-surface)"})
+        if ink in {color for color, _, _ in zus_stops}:
+            parent = ET.SubElement(parent, "g", {"clip-path": "url(#zus-original-markers)"})
+        group = ET.SubElement(parent, "g", {
             "fill": "#%02x%02x%02x" % color,
             "transform": f"scale({1 / sx:.9f} {1 / sy:.9f})",
         })
@@ -138,7 +166,7 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
                             ink == "#%02x%02x%02x" % color
                             and x1 <= (tx + left) / sx <= (tx + right) / sx <= x2
                             and y1 <= (ty + top) / sy <= (ty + bottom) / sy <= y2
-                            for ink, (x1, y1, x2, y2), _ in tunnels
+                            for ink, (x1, y1, x2, y2), _, _, _ in tunnels
                         )
                     # VTracer's small inner contours are stop holes. Keep the
                     # outer route contour and larger/skinny gaps unchanged.
@@ -159,23 +187,39 @@ with tempfile.TemporaryDirectory(prefix="tram-trace-") as temp:
                     ET.SubElement(group, "path", attributes)
 
 # Keep the original underpasses beneath the two north–south surface tracks.
-clip = ET.SubElement(ET.SubElement(svg, "defs"), "clipPath", {"id": "tunnel-crossings"})
+clip = ET.SubElement(defs, "clipPath", {"id": "tunnel-crossings"})
 ET.SubElement(clip, "path", {
-    "d": "M0 0H1778V1408H0Z M621 0H628V1408H621Z M798 0H806V1408H798Z",
+    "d": "M0 0H1778V1408H0Z M621 378H628V469H621Z M798 378H806V469H798Z",
     "clip-rule": "evenodd",
 })
 tunnel_lines = ET.SubElement(svg, "g", {
     "id": "tunnel-lines", "fill": "none", "stroke-linejoin": "round",
 })
-for ink, bounds, centerline in tunnels:
-    attrs = {"d": centerline}
-    if bounds[1] == 378:
+for ink, bounds, approach, centerline, exit_line in tunnels:
+    attrs = {}
+    if bounds[1] == 320:
         attrs["clip-path"] = "url(#tunnel-crossings)"
     ET.SubElement(tunnel_lines, "path", {
-        **attrs, "stroke": ink, "stroke-width": "3.8", "stroke-linecap": "round",
+        **attrs, "d": f"{approach} {centerline.replace('M', 'L', 1)} {exit_line}",
+        "stroke": ink, "stroke-width": "4.2",
     })
-    ET.SubElement(tunnel_lines, "path", {**attrs, "stroke": "#241f31", "stroke-width": "1.2"})
-assert replaced_contours == 16, f"Expected 16 tunnel contours, found {replaced_contours}"
+    ET.SubElement(tunnel_lines, "path", {
+        **attrs, "d": centerline, "stroke": "#241f31", "stroke-width": "1.2",
+    })
+assert replaced_contours == 29, f"Expected 29 tunnel/surface contours, found {replaced_contours}"
+
+# Restore just the straight tracks under the cleared markers. Nearby route
+# curves and the interchange outline remain untouched.
+zus_tracks = ET.SubElement(svg, "g", {"id": "zus-tracks", "fill": "none", "stroke-width": "4.2"})
+for ink, x, y in zus_stops:
+    ET.SubElement(zus_tracks, "path", {
+        "d": f"M{x - 6:.3f} {y + 6:.3f}L{x + 6:.3f} {y - 6:.3f}", "stroke": ink,
+    })
+stop_circles = [
+    stop for stop in stop_circles
+    if not (308 < float(stop["cx"]) < 336 and 1097 < float(stop["cy"]) < 1125)
+]
+stop_circles.extend({"cx": f"{x:.3f}", "cy": f"{y:.3f}", "stroke": ink} for ink, x, y in zus_stops)
 
 # Native circles stay round even at maximum zoom. Draw in viewBox coordinates,
 # outside the trace's slightly non-uniform source-image scale.

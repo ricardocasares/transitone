@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kraków Tram Tones
 
-## Getting Started
+A playable SVG tram network. Every logical stop has one sound, shared by all its platforms and directions. Live arrivals use only ZTP’s official tram feed; no simulated arrivals or GPS inference.
 
-First, run the development server:
+## Run
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```sh
+bun install
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Tap a stop for an immediate preview, or choose **Start listening** for live music. The first feed snapshot is silent. Drag, scroll, pinch, or use the zoom buttons to explore; Tab then Enter/Space plays a focused stop. A skip link reaches the sound controls without tabbing through the whole network.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sh
+bun test
+bun run lint
+bun run build
+bun run start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Production requires Node 22+ (or Bun) and outbound HTTPS to `gtfs.ztp.krakow.pl`. No database, credentials, remote fonts, or audio files are needed. Tests also use Ruby, `zip`, and `unzip` to verify the actual schedule-import script.
 
-## Learn More
+## Stops and live data
 
-To learn more about Next.js, take a look at the following resources:
+- `src/data/network.ts` contains the reference map’s names, positions, explicit aliases and stable note steps. `src/data/gtfs-stops.json` groups every row in the official tram `stops.txt` by its exact trimmed `stop_name`. Each platform ID is checked for unique ownership.
+- The checked-in mapping was generated on **21 September 2026**. Teatr Słowackiego has four IDs, all mapped to one sound. Stops missing from the active schedule, including Teatr Bagatela in this snapshot, remain visible and manually playable. New stops not present in the supplied diagram are not invented on the map.
+- `GET /api/arrivals` fetches `VehiclePositions_T.pb` with an eight-second timeout, decodes protobuf, validates fresh complete `STOPPED_AT` records, and resolves platform IDs to logical stops. Upstream failure returns HTTP 502 with `{ "error": "feed_unavailable" }`.
+- The browser polls approximately every ten seconds. It deduplicates by `(vehicleId, tripId, stopSequence)`, never by platform ID or logical stop. Separate trams at the same stop remain separate notes. Hidden tabs stop polling and clear scheduled audio; visibility resume and feed recovery silently re-prime.
+- A ten-second sampled feed cannot guarantee detection of a stop served entirely between snapshots. This app does not infer missed arrivals.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Regenerate the mapping when the schedule changes, then rebuild/redeploy:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sh
+bun run refresh:stops
+# Or use an already downloaded official ZIP:
+ruby scripts/refresh-stops.rb /path/to/GTFS_KRK_T.zip
+```
 
-## Deploy on Vercel
+The importer needs Ruby’s standard library, `curl`, and `unzip`. Unknown names are not fuzzy-matched. Review explicit aliases when ZTP renames stops. In particular, the reference’s **Borek Fałęcki I → Solvay** and **Solvay → Kościuszkowców** are separate places ([official rename notice](https://www.krakow.pl/aktualnosci/284127%2C26%2Ckomunikat%2Cnowa_trasa_linii_513__zmiany_nazw_przystankow.html)). Centralna maps to Gałczyńskiego ([ZTP notice](https://ztp.krakow.pl/kmk/komunikaty/1012-2024)).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Audio and v2 boundary
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Native Web Audio uses one gesture-unlocked context, filtered triangle voices with attack/release ramps, map-based stereo positioning, smoothed master gain, and a compressor. Default tuning is C major pentatonic. Four scale choices and all twelve roots are available.
+
+Live notes use the audio clock on a 100 BPM eighth-note grid: at most four arrivals per subdivision, with 35 ms offsets for gentle separation. The eight-voice limit includes manual notes and future reservations. Extreme manual bursts wait for a voice rather than clipping or cutting an existing note.
+
+Every trigger reaches `playStop(stopKey)` in `src/lib/audio.ts`. That is the replacement point for per-stop samples in v2. Sample assignment UI, sample loading, persistence, buses, and route planning are intentionally not implemented.
+
+## Artwork
+
+`public/tram-network.svg` is a true vector trace of the supplied PNG’s tram inks, not an embedded raster. Stop labels and accessible interactive groups are rendered in the inline SVG by `src/components/tram-map.tsx`. Railways, legends, route-number discs, branding, river, and non-stop annotations are removed. **Zajezdnia Nowa Huta remains because it is a named passenger tram stop**, not a depot symbol.
+
+The development-only `scripts/trace-map.py` regenerates the vector from the original 3780 × 2992 reference, using Pillow, NumPy, and VTracer. None of those packages or the source PNG is needed at runtime. The trace was checked against an aligned temporary source underlay; the raster is not shipped.
+
+## Verification
+
+23 automated tests cover the CSV importer, platform ownership, deduplication, silent priming, invalid feeds, real timeout expiry, HTTP failure/recovery, scale pitches and scheduling limits. Lint, TypeScript and the production build pass.
+
+Browser checks covered actual live arrivals, stop-dot clicks, Enter/Space previews, root/scale changes, mute, drag, wheel zoom, reset, and desktop (1440 × 900) and mobile-size (390 × 844) layouts without horizontal overflow. Physical multi-touch gestures and subjective sound quality still need a real-device listening check; viewport resizing is not a substitute for those.

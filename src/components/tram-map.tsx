@@ -91,9 +91,14 @@ const TramMap = memo(
             }
             node
               .querySelector("text")
-              ?.animate([{ fill: "#e5ffd8" }, { fill: "#d2cddb" }], {
-                duration: 1100,
-              });
+              ?.animate(
+                [
+                  { fill: "#fff" },
+                  { fill: "#d3efb5", offset: 0.5 },
+                  { fill: "#fff" },
+                ],
+                { duration: 1100, easing: "ease-in-out" },
+              );
           }
         },
       }),

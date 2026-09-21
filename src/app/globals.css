@@ -85,12 +85,11 @@ a:focus-visible {
   outline: none;
 }
 .map-stop text {
-  fill: #d2cddb;
+  fill: #fff;
   font-size: 10.7px;
   letter-spacing: 0.08px;
 }
 .map-stop.interchange text {
-  fill: #32bee7;
   font-weight: 600;
 }
 .stop-hit {
@@ -130,6 +129,7 @@ a:focus-visible {
 }
 .console {
   position: relative;
+  font-weight: 600;
   padding: 8px 12px;
   border: 1px solid #ffffff26;
   background: #211d2b80;
@@ -225,6 +225,7 @@ a:focus-visible {
 }
 .ready-text {
   font-size: 12px;
+  line-height: 24px;
   color: #c5bdce;
 }
 .recent-note {
@@ -339,6 +340,7 @@ a:focus-visible {
   }
   .ready-text {
     font-size: 10px;
+    line-height: 21px;
   }
   .recent-note {
     font-size: 10px;

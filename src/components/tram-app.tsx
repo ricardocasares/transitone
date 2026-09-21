@@ -25,10 +25,6 @@ export default function TramApp({ network }: { network: ReactNode }) {
   const [listening, setListening] = useState(false);
   const [root, setRoot] = useState(0);
   const [scale, setScale] = useState<ScaleName>("Major pentatonic");
-  const [status, setStatus] = useState<
-    "connecting" | "live" | "retrying" | "paused"
-  >("connecting");
-  const [updated, setUpdated] = useState<number | null>(null);
   const [recent, setRecent] = useState<{
     label: string;
     note: string;
@@ -75,13 +71,10 @@ export default function TramApp({ network }: { network: ReactNode }) {
           throw new Error("Invalid snapshot");
         if (disposed || current !== generation || document.hidden) return;
         const arrivals = tracker.current.consume(snapshot);
-        setStatus("live");
-        setUpdated(snapshot.generatedAt);
         if (playing.current)
           engine.current?.playSnapshot(arrivals.map((event) => event.stopKey));
       } catch {
         if (!disposed && current === generation && !document.hidden) {
-          setStatus("retrying");
           tracker.current.primeNext();
         }
       } finally {
@@ -96,9 +89,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
       request?.abort();
       engine.current?.clear();
       tracker.current.primeNext();
-      if (document.hidden) setStatus("paused");
-      else {
-        setStatus("connecting");
+      if (!document.hidden) {
         if (playing.current) {
           void engine.current?.unlock().catch(() => {
             if (disposed) return;
@@ -154,12 +145,6 @@ export default function TramApp({ network }: { network: ReactNode }) {
     }
   }
 
-  const statusLabel = {
-    connecting: "Connecting",
-    live: "Live from Kraków",
-    retrying: "Reconnecting",
-    paused: "Updates paused",
-  }[status];
   return (
     <main className="instrument">
       <a className="skip-link" href="#sound-controls">
@@ -232,26 +217,6 @@ export default function TramApp({ network }: { network: ReactNode }) {
             </p>
           )}
         </footer>
-        <div className="micro-footer">
-          <output
-            className={`feed-state ${status}`}
-            title={
-              updated
-                ? `Last feed: ${new Date(updated).toLocaleTimeString("en-GB", { timeZone: "Europe/Warsaw" })} Warsaw time`
-                : undefined
-            }
-          >
-            <span className="status-dot" />
-            {statusLabel}
-          </output>
-          <a
-            href="https://gtfs.ztp.krakow.pl/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Live data by ZTP Kraków <span aria-hidden="true">↗</span>
-          </a>
-        </div>
       </div>
     </main>
   );

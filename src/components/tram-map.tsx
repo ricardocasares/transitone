@@ -7,31 +7,12 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
-  useState,
 } from "react";
 import { mapStops, stopsByKey } from "@/data/network";
+import { INITIAL, resizeView, type View, zoomView } from "@/lib/map-view";
 
-const INITIAL = { x: 90, y: 75, width: 1590, height: 1200 };
-type View = typeof INITIAL;
 type Point = { x: number; y: number };
 export type MapHandle = { pulse: (key: string) => void };
-
-function bounded(view: View): View {
-  const width = Math.max(
-    INITIAL.width / 8,
-    Math.min(INITIAL.width, view.width),
-  );
-  const height = (width * INITIAL.height) / INITIAL.width;
-  return {
-    width,
-    height,
-    x: Math.max(INITIAL.x, Math.min(INITIAL.x + INITIAL.width - width, view.x)),
-    y: Math.max(
-      INITIAL.y,
-      Math.min(INITIAL.y + INITIAL.height - height, view.y),
-    ),
-  };
-}
 
 const labelLines: Record<string, string[]> = {
   "Dworzec Towarowy": ["Dworzec", "Towarowy"],
@@ -58,11 +39,9 @@ const TramMap = memo(
     const dragged = useRef(false);
     const start = useRef<Point | null>(null);
     const frame = useRef<number | null>(null);
-    const [zoom, setZoom] = useState(1);
-    const [interacted, setInteracted] = useState(false);
 
     function apply(next: View) {
-      view.current = bounded(next);
+      view.current = next;
       if (frame.current !== null) return;
       frame.current = requestAnimationFrame(() => {
         frame.current = null;
@@ -71,7 +50,6 @@ const TramMap = memo(
           "viewBox",
           `${v.x} ${v.y} ${v.width} ${v.height}`,
         );
-        setZoom(INITIAL.width / v.width);
       });
     }
 
@@ -81,20 +59,8 @@ const TramMap = memo(
       return new DOMPoint(client.x, client.y).matrixTransform(matrix.inverse());
     }
 
-    function zoomAt(factor: number, anchor?: Point) {
-      const v = view.current;
-      const at = anchor ?? { x: v.x + v.width / 2, y: v.y + v.height / 2 };
-      const width = Math.max(
-        INITIAL.width / 8,
-        Math.min(INITIAL.width, v.width * factor),
-      );
-      const ratio = width / v.width;
-      apply({
-        x: at.x - (at.x - v.x) * ratio,
-        y: at.y - (at.y - v.y) * ratio,
-        width,
-        height: v.height * ratio,
-      });
+    function zoomAt(factor: number, anchor: Point) {
+      apply(zoomView(view.current, factor, anchor));
     }
 
     useImperativeHandle(
@@ -138,9 +104,14 @@ const TramMap = memo(
     useEffect(() => {
       const element = svg.current;
       if (!element) return;
+      const observer = new ResizeObserver(([entry]) => {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0)
+          apply(resizeView(view.current, width / height));
+      });
+      observer.observe(element);
       const wheel = (event: WheelEvent) => {
         event.preventDefault();
-        setInteracted(true);
         zoomAt(
           Math.exp(Math.max(-200, Math.min(200, event.deltaY)) * 0.002),
           point({ x: event.clientX, y: event.clientY }),
@@ -148,6 +119,7 @@ const TramMap = memo(
       };
       element.addEventListener("wheel", wheel, { passive: false });
       return () => {
+        observer.disconnect();
         element.removeEventListener("wheel", wheel);
         if (frame.current !== null) cancelAnimationFrame(frame.current);
       };
@@ -186,7 +158,6 @@ const TramMap = memo(
               svg.current?.setPointerCapture(event.pointerId);
             }
             if (!dragged.current) return;
-            setInteracted(true);
             const other = [...pointers.current.entries()].find(
               ([id]) => id !== event.pointerId,
             )?.[1];
@@ -245,8 +216,7 @@ const TramMap = memo(
           <title>Kraków tram network</title>
           <desc>
             Each named stop is an instrument. All directions and platforms play
-            the same note. Drag to pan; use the zoom controls or pinch to
-            explore.
+            the same note. Drag to pan; scroll or pinch to zoom.
           </desc>
           {network}
           {mapStops.map((stop) => (
@@ -320,37 +290,6 @@ const TramMap = memo(
             </g>
           ))}
         </svg>
-        <div className="map-hint" aria-hidden="true">
-          {interacted
-            ? "Tap a stop to hear its note"
-            : "Drag to explore · Scroll or pinch to zoom"}
-        </div>
-        <nav className="map-tools" aria-label="Map navigation">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            disabled={zoom <= 1.001}
-            onClick={() => zoomAt(1.35)}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className="zoom-reset"
-            aria-label="Reset map view"
-            onClick={() => apply(INITIAL)}
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            disabled={zoom >= 7.999}
-            onClick={() => zoomAt(1 / 1.35)}
-          >
-            +
-          </button>
-        </nav>
       </div>
     );
   }),

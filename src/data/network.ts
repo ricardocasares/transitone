@@ -384,8 +384,9 @@ export const mapStops: StopNode[] = positions.map((row) => {
     label,
     x,
     y,
-    labelX: x + dx * spacing,
-    labelY: y + dy * spacing,
+    // Normalize engine-specific Math.hypot rounding before SVG hydration.
+    labelX: Number((x + dx * spacing).toFixed(6)),
+    labelY: Number((y + dy * spacing).toFixed(6)),
     angle: row.angle ?? 0,
     anchor: row.anchor ?? "start",
     hub: row.hub ?? false,

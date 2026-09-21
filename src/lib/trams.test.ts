@@ -99,7 +99,13 @@ test("every stop label clears its route marker", () => {
   for (const stop of mapStops)
     expect(
       Math.hypot(stop.labelX - stop.x, stop.labelY - stop.y),
-    ).toBeGreaterThanOrEqual(20 - 1e-9);
+    ).toBeGreaterThanOrEqual(20 - 1e-6);
+});
+
+test("diagonal stop labels have stable coordinates for SVG hydration", () => {
+  const stop = mapStops.find((stop) => stop.key === "bienczycka");
+  expect(stop?.labelX).toBe(1215.857864);
+  expect(stop?.labelY).toBe(444.857864);
 });
 
 const theatre = stopsByKey.get("teatr-slowackiego");

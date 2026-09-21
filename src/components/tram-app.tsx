@@ -196,156 +196,117 @@ export default function TramApp({ network }: { network: ReactNode }) {
       <a className="skip-link" href="#sound-controls">
         Skip to sound controls
       </a>
-      <header className="app-header">
-        <div className="identity">
-          <svg
-            className="brand-mark"
-            viewBox="0 0 32 32"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M8 4v14c0 4 3 7 7 7h9M15 4v12c0 1.1.9 2 2 2h7M22 4v7"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle
-              cx="8"
-              cy="8"
-              r="2.5"
-              fill="var(--surface)"
-              stroke="currentColor"
-            />
-            <circle
-              cx="15"
-              cy="8"
-              r="2.5"
-              fill="var(--surface)"
-              stroke="currentColor"
-            />
-            <circle
-              cx="22"
-              cy="8"
-              r="2.5"
-              fill="var(--surface)"
-              stroke="currentColor"
-            />
-          </svg>
-          <div>
-            <h1>
-              Kraków <span>Tram Tones</span>
-            </h1>
-            <p>A city in motion. A melody in the making.</p>
-          </div>
-        </div>
-        <output
-          className={`feed-state ${status}`}
-          title={
-            updated
-              ? `Last feed: ${new Date(updated).toLocaleTimeString("en-GB", { timeZone: "Europe/Warsaw" })} Warsaw time`
-              : undefined
-          }
-        >
-          <span className="status-dot" />
-          {statusLabel}
-        </output>
-      </header>
       <TramMap ref={map} network={network} onPreview={preview} />
-      <footer className="console" id="sound-controls" tabIndex={-1}>
-        <div className="transport">
-          <button
-            type="button"
-            className={`listen-button ${listening ? "listening" : ""}`}
-            aria-pressed={listening}
-            onClick={toggleListening}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              {listening ? (
-                <path d="M5 4h3v12H5zm7 0h3v12h-3z" />
-              ) : (
-                <path d="m6 3 11 7-11 7V3Z" />
-              )}
-            </svg>
-            {listening ? "Pause listening" : "Start listening"}
-          </button>
-          <span className="transport-caption">
-            {listening ? "Let the city compose" : "Or tap a stop to play"}
-          </span>
-        </div>
-        <div className="tuning-controls">
-          <label className="control root-control">
-            <span>KEY</span>
-            <select
-              value={root}
-              onChange={(e) => setRoot(Number(e.target.value))}
+      <div className="bottom-ui">
+        <footer className="console" id="sound-controls" tabIndex={-1}>
+          <div className="transport">
+            <button
+              type="button"
+              className={`listen-button ${listening ? "listening" : ""}`}
+              aria-pressed={listening}
+              onClick={toggleListening}
             >
-              {ROOTS.map((name, index) => (
-                <option key={name} value={index}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="control scale-control">
-            <span>SCALE</span>
-            <select
-              value={scale}
-              onChange={(e) => setScale(e.target.value as ScaleName)}
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                {listening ? (
+                  <path d="M5 4h3v12H5zm7 0h3v12h-3z" />
+                ) : (
+                  <path d="m6 3 11 7-11 7V3Z" />
+                )}
+              </svg>
+              {listening ? "Pause listening" : "Start listening"}
+            </button>
+            <span className="transport-caption">
+              {listening ? "Let the city compose" : "Or tap a stop to play"}
+            </span>
+          </div>
+          <div className="tuning-controls">
+            <label className="control root-control">
+              <span>KEY</span>
+              <select
+                value={root}
+                onChange={(e) => setRoot(Number(e.target.value))}
+              >
+                {ROOTS.map((name, index) => (
+                  <option key={name} value={index}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="control scale-control">
+              <span>SCALE</span>
+              <select
+                value={scale}
+                onChange={(e) => setScale(e.target.value as ScaleName)}
+              >
+                {Object.keys(SCALES).map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="volume-control">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={muted ? "Unmute sound" : "Mute sound"}
+              aria-pressed={muted}
+              onClick={() => setMuted(!muted)}
             >
-              {Object.keys(SCALES).map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="volume-control">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={muted ? "Unmute sound" : "Mute sound"}
-            aria-pressed={muted}
-            onClick={() => setMuted(!muted)}
-          >
-            <SoundIcon muted={muted || volume === 0} />
-          </button>
-          <input
-            aria-label="Volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
-            style={{ "--level": `${volume * 100}%` } as CSSProperties}
-          />
-        </div>
-        <div className="now-playing">
-          <span className="eyebrow">
-            {recent ? "LAST NOTE" : "READY TO PLAY"}
-          </span>
-          {recent ? (
-            <div className="recent-note" key={recent.id}>
-              <span className="note-chip">{recent.note}</span>
-              <span>{recent.label}</span>
-            </div>
-          ) : (
-            <div className="ready-text">
-              {stops.length} stops. One instrument.
-            </div>
+              <SoundIcon muted={muted || volume === 0} />
+            </button>
+            <input
+              aria-label="Volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+              style={{ "--level": `${volume * 100}%` } as CSSProperties}
+            />
+          </div>
+          <div className="now-playing">
+            <span className="eyebrow">
+              {recent ? "LAST NOTE" : "READY TO PLAY"}
+            </span>
+            {recent ? (
+              <div className="recent-note" key={recent.id}>
+                <span className="note-chip">{recent.note}</span>
+                <span>{recent.label}</span>
+              </div>
+            ) : (
+              <div className="ready-text">
+                {stops.length} stops. One instrument.
+              </div>
+            )}
+          </div>
+          {error && (
+            <p className="audio-error" role="alert">
+              {error}
+            </p>
           )}
+        </footer>
+        <div className="micro-footer">
+          <output
+            className={`feed-state ${status}`}
+            title={
+              updated
+                ? `Last feed: ${new Date(updated).toLocaleTimeString("en-GB", { timeZone: "Europe/Warsaw" })} Warsaw time`
+                : undefined
+            }
+          >
+            <span className="status-dot" />
+            {statusLabel}
+          </output>
+          <a
+            href="https://gtfs.ztp.krakow.pl/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Live data by ZTP Kraków <span aria-hidden="true">↗</span>
+          </a>
         </div>
-        {error && (
-          <p className="audio-error" role="alert">
-            {error}
-          </p>
-        )}
-      </footer>
-      <div className="micro-footer">
-        <span>Snapshot replay · 100 BPM</span>
-        <a href="https://gtfs.ztp.krakow.pl/" target="_blank" rel="noreferrer">
-          Live data by ZTP Kraków <span aria-hidden="true">↗</span>
-        </a>
       </div>
     </main>
   );

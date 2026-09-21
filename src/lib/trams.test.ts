@@ -146,8 +146,8 @@ describe("one logical stop, every platform", () => {
       ).toBe(0);
       const output = join(dir, "result.json");
       const result = Bun.spawnSync([
-        "ruby",
-        "scripts/refresh-stops.rb",
+        "bun",
+        "scripts/refresh-stops.ts",
         join(dir, "stops.zip"),
         output,
       ]);

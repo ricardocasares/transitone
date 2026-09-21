@@ -8,7 +8,7 @@ const barlow = Barlow({
 });
 
 export const metadata: Metadata = {
-  title: "Kraków · Tram Tones",
+  title: "TransiTone · Kraków",
   description:
     "Listen to Kraków in motion. Each live snapshot of stopped trams becomes a musical phrase on an interactive map of the city.",
 };

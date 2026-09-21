@@ -149,13 +149,14 @@ a:focus-visible {
   padding: 10px 12px;
   border: 0;
   border-radius: 999px;
-  background: var(--accent);
+  background: #d3efb5b3;
+  backdrop-filter: blur(12px) saturate(150%);
   color: #252e20;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.05px;
   transition:
@@ -163,7 +164,7 @@ a:focus-visible {
     transform 0.15s;
 }
 .listen-button:hover {
-  background: #e5ffd0;
+  background: #e5ffd0cc;
 }
 .listen-button:active {
   transform: translateY(1px);

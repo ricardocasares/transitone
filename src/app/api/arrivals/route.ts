@@ -1,6 +1,5 @@
 import { fetchArrivals } from "@/lib/feed";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {

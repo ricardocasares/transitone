@@ -1,6 +1,6 @@
-# Kraków Tram Tones
+# TransiTone
 
-A playable SVG tram network. Every logical stop has one sound, shared by all its platforms and directions. Each live snapshot of stopped trams becomes a musical phrase, using only ZTP’s official tram feed; no simulated vehicles or GPS inference.
+TransiTone turns Kraków’s tram network into a playable SVG instrument. Every logical stop has one sound, shared by all its platforms and directions. Each live snapshot of stopped trams becomes a musical phrase, using only ZTP’s official tram feed; no simulated vehicles or GPS inference.
 
 ## Run
 
@@ -18,7 +18,7 @@ bun run build
 bun run start
 ```
 
-Production requires Node 22+ (or Bun) and outbound HTTPS to `gtfs.ztp.krakow.pl`. No database, credentials, remote fonts, or audio files are needed. Tests also use Ruby, `zip`, and `unzip` to verify the actual schedule-import script.
+Production requires Node 22+ (or Bun) and outbound HTTPS to `gtfs.ztp.krakow.pl`. No database, credentials, remote fonts, or audio files are needed. Tests use the `zip` CLI to build a fixture for the schedule-import script.
 
 ## Stops and live data
 
@@ -28,15 +28,15 @@ Production requires Node 22+ (or Bun) and outbound HTTPS to `gtfs.ztp.krakow.pl`
 - The browser polls approximately every ten seconds and replays the **entire snapshot**, including vehicles already heard on a previous poll. A tram that remains at a platform sounds again in the next phrase. Duplicate records within one snapshot are deduplicated by `(vehicleId, tripId, stopSequence)`; separate trams at the same logical stop remain separate notes. Out-of-order snapshots are ignored; an unchanged timestamp is replayable while the feed is still fresh. Hidden tabs stop polling and clear scheduled audio; startup, visibility resume and feed recovery silently prime the next snapshot.
 - A ten-second sampled feed cannot guarantee detection of a stop served entirely between snapshots. This app does not infer missed arrivals.
 
-Regenerate the mapping when the schedule changes, then rebuild/redeploy:
+`bun run build` regenerates the mapping from the live feed before every production build, so each deploy ships the current schedule (the build fails if the feed is unreachable). To refresh it by hand:
 
 ```sh
 bun run refresh:stops
 # Or use an already downloaded official ZIP:
-ruby scripts/refresh-stops.rb /path/to/GTFS_KRK_T.zip
+bun scripts/refresh-stops.ts /path/to/GTFS_KRK_T.zip
 ```
 
-The importer needs Ruby’s standard library, `curl`, and `unzip`. Unknown names are not fuzzy-matched. Review explicit aliases when ZTP renames stops. In particular, the reference’s **Borek Fałęcki I → Solvay** and **Solvay → Kościuszkowców** are separate places ([official rename notice](https://www.krakow.pl/aktualnosci/284127%2C26%2Ckomunikat%2Cnowa_trasa_linii_513__zmiany_nazw_przystankow.html)). Centralna maps to Gałczyńskiego ([ZTP notice](https://ztp.krakow.pl/kmk/komunikaty/1012-2024)).
+The importer is dependency-free (ZIP and CSV parsing are inline) and needs only Bun. Unknown names are not fuzzy-matched. Review explicit aliases when ZTP renames stops. In particular, the reference’s **Borek Fałęcki I → Solvay** and **Solvay → Kościuszkowców** are separate places ([official rename notice](https://www.krakow.pl/aktualnosci/284127%2C26%2Ckomunikat%2Cnowa_trasa_linii_513__zmiany_nazw_przystankow.html)). Centralna maps to Gałczyńskiego ([ZTP notice](https://ztp.krakow.pl/kmk/komunikaty/1012-2024)).
 
 ## Audio and v2 boundary
 

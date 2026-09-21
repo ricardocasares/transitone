@@ -1,14 +1,14 @@
 {
-  "name": "trams",
+  "name": "transitone",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "bun --bun next dev",
-    "build": "bun --bun next build",
+    "build": "bun scripts/refresh-stops.ts && bun --bun next build",
     "start": "bun --bun next start",
     "lint": "biome check",
     "test": "bun test",
-    "refresh:stops": "ruby scripts/refresh-stops.rb",
+    "refresh:stops": "bun scripts/refresh-stops.ts",
     "format": "biome format --write"
   },
   "dependencies": {

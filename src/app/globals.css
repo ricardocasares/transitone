@@ -135,6 +135,7 @@ h1 span {
   position: relative;
   overflow: hidden;
   background: var(--map);
+  font-family: var(--font-barlow), sans-serif;
 }
 .network-map {
   width: 100%;
@@ -156,9 +157,7 @@ h1 span {
 }
 .map-stop text {
   fill: #d2cddb;
-  font-family:
-    "Aptos Narrow", "Arial Narrow", "Roboto Condensed", "Helvetica Neue",
-    sans-serif;
+  font-family: var(--font-barlow-condensed), sans-serif;
   font-size: 10.7px;
   font-stretch: condensed;
   font-weight: 450;

@@ -8,6 +8,19 @@ export type ArrivalEvent = {
 
 export type ArrivalSnapshot = { generatedAt: number; arrivals: ArrivalEvent[] };
 export const POLL_INTERVAL_MS = 10_000;
+// Ask for the next snapshot this long before the queued phrase runs out, so
+// the reply is normally back and the next phrase chained onto the grid before
+// the last bar ends. Polls never come closer together than MIN_POLL_MS, and
+// fall back to the feed's own cadence while nothing is queued.
+export const FETCH_LEAD_MS = 3_000;
+export const MIN_POLL_MS = 4_000;
+export function nextPollDelay(remainingSeconds: number) {
+  if (remainingSeconds <= 0) return POLL_INTERVAL_MS;
+  return Math.max(
+    MIN_POLL_MS,
+    Math.round(remainingSeconds * 1000) - FETCH_LEAD_MS,
+  );
+}
 
 export function createSnapshotTracker() {
   let primed = true;

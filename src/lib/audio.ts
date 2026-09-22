@@ -1,7 +1,8 @@
 import { ROLES, type Role, stopsByKey } from "@/data/network";
 import {
-  arrangeTimes,
+  arrange,
   availableTime,
+  BEAT,
   pitch,
   ROLE_LENGTH,
   type ScaleName,
@@ -15,6 +16,7 @@ type Voice = {
   start: number;
   end: number;
   live: boolean;
+  level: number;
 };
 // Per-role bus levels into the shared compressor.
 const BUS_LEVEL: Record<Role, number> = {
@@ -83,13 +85,15 @@ export function createAudioEngine(
     oscillator.frequency.value = frequency;
     return oscillator;
   }
-  // Each voice's envelope ends exactly at its ROLE_LENGTH reservation.
+  // Each voice's envelope ends exactly at its ROLE_LENGTH reservation. `level`
+  // scales the peak: 1 is a full hit, less is a ghost note.
   function build(
     ctx: AudioContext,
     role: Role,
     step: number,
     time: number,
     gain: GainNode,
+    level: number,
   ): { source: AudioScheduledSourceNode; nodes: AudioNode[]; name: string } {
     const g = gain.gain;
     const end = time + ROLE_LENGTH[role];
@@ -99,7 +103,7 @@ export function createAudioEngine(
         source.frequency.setValueAtTime(150, time);
         source.frequency.exponentialRampToValueAtTime(42, time + 0.06);
         g.setValueAtTime(0, time);
-        g.linearRampToValueAtTime(0.9, time + 0.004);
+        g.linearRampToValueAtTime(0.9 * level, time + 0.004);
         g.exponentialRampToValueAtTime(0.001, end - 0.01);
         g.linearRampToValueAtTime(0, end);
         source.connect(gain);
@@ -112,11 +116,15 @@ export function createAudioEngine(
         filter.frequency.value = 1800;
         filter.Q.value = 0.8;
         g.setValueAtTime(0, time);
-        g.linearRampToValueAtTime(0.5, time + 0.003);
+        g.linearRampToValueAtTime(0.5 * level, time + 0.003);
         g.exponentialRampToValueAtTime(0.001, end - 0.01);
         g.linearRampToValueAtTime(0, end);
         source.connect(filter).connect(gain);
-        return { source, nodes: [source, filter], name: "Snare" };
+        return {
+          source,
+          nodes: [source, filter],
+          name: level < 1 ? "Ghost snare" : "Snare",
+        };
       }
       case "hihat": {
         const source = noiseSource(ctx);
@@ -124,7 +132,7 @@ export function createAudioEngine(
         filter.type = "highpass";
         filter.frequency.value = 7000;
         g.setValueAtTime(0, time);
-        g.linearRampToValueAtTime(0.35, time + 0.002);
+        g.linearRampToValueAtTime(0.35 * level, time + 0.002);
         g.exponentialRampToValueAtTime(0.001, end - 0.005);
         g.linearRampToValueAtTime(0, end);
         source.connect(filter).connect(gain);
@@ -137,7 +145,7 @@ export function createAudioEngine(
         filter.type = "lowpass";
         filter.frequency.value = Math.min(note.frequency * 4, 900);
         g.setValueAtTime(0, time);
-        g.linearRampToValueAtTime(0.32, time + 0.01);
+        g.linearRampToValueAtTime(0.32 * level, time + 0.01);
         g.exponentialRampToValueAtTime(0.001, end - 0.02);
         g.linearRampToValueAtTime(0, end);
         source.connect(filter).connect(gain);
@@ -150,7 +158,7 @@ export function createAudioEngine(
         filter.type = "lowpass";
         filter.frequency.value = Math.min(note.frequency * 3, 5000);
         g.setValueAtTime(0, time);
-        g.linearRampToValueAtTime(0.14, time + 0.014);
+        g.linearRampToValueAtTime(0.14 * level, time + 0.014);
         g.exponentialRampToValueAtTime(0.001, end - 0.02);
         g.linearRampToValueAtTime(0, end);
         source.connect(filter).connect(gain);
@@ -159,7 +167,7 @@ export function createAudioEngine(
     }
   }
 
-  function playStop(stopKey: string, requestedTime?: number) {
+  function playStop(stopKey: string, requestedTime?: number, level = 1) {
     const stop = stopsByKey.get(stopKey);
     if (!context || context.state !== "running" || !stop) return;
     const now = context.currentTime;
@@ -180,6 +188,7 @@ export function createAudioEngine(
       stop.noteStep,
       time,
       gain,
+      level,
     );
     gain.connect(pan).connect(buses[stop.role]);
     const voice = {
@@ -190,6 +199,7 @@ export function createAudioEngine(
       start: time,
       end: time + ROLE_LENGTH[stop.role],
       live,
+      level,
     };
     voices.push(voice);
     source.start(time);
@@ -228,13 +238,20 @@ export function createAudioEngine(
     playStop,
     playSnapshot(keys: string[]) {
       if (!context || context.state !== "running") return;
-      const times = arrangeTimes(
+      const placements = arrange(
         keys.map((key) => stopsByKey.get(key)?.role ?? "lead"),
         Math.max(context.currentTime, queueEnd),
       );
       keys.forEach((key, index) => {
-        queueEnd = Math.max(queueEnd, playStop(key, times[index]) ?? 0);
+        const { time, level } = placements[index];
+        queueEnd = Math.max(queueEnd, playStop(key, time, level) ?? 0);
       });
+    },
+    // Seconds of queued music left, so the app can ask for the next snapshot
+    // before the last bar ends and chain the next phrase onto this one.
+    remaining() {
+      if (!context) return 0;
+      return Math.max(0, queueEnd + BEAT - context.currentTime);
     },
     tune(nextRoot: number, nextScale: ScaleName) {
       const pending = voices.filter(
@@ -248,7 +265,7 @@ export function createAudioEngine(
       for (const voice of pending) {
         queueEnd = Math.max(
           queueEnd,
-          playStop(voice.stopKey, voice.start) ?? 0,
+          playStop(voice.stopKey, voice.start, voice.level) ?? 0,
         );
       }
     },

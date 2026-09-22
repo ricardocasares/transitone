@@ -11,6 +11,7 @@ import { type Role, stops, stopsByKey } from "@/data/network";
 import {
   createSnapshotTracker,
   isArrivalSnapshot,
+  nextPollDelay,
   POLL_INTERVAL_MS,
 } from "@/lib/arrivals";
 import { type AudioEngine, createAudioEngine } from "@/lib/audio";
@@ -73,6 +74,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
       const controller = new AbortController();
       request = controller;
       const timeout = setTimeout(() => controller.abort(), 10000);
+      let delay = POLL_INTERVAL_MS;
       try {
         const response = await fetch("/api/arrivals", {
           cache: "no-store",
@@ -89,6 +91,9 @@ export default function TramApp({ network }: { network: ReactNode }) {
         const arrivals = tracker.current.consume(snapshot);
         if (playing.current)
           engine.current?.playSnapshot(arrivals.map((event) => event.stopKey));
+        // Ask again before the queued phrase runs out, so the next phrase
+        // chains onto the grid without a gap.
+        delay = nextPollDelay(engine.current?.remaining() ?? 0);
       } catch {
         if (!disposed && current === generation && !document.hidden) {
           tracker.current.primeNext();
@@ -96,7 +101,7 @@ export default function TramApp({ network }: { network: ReactNode }) {
       } finally {
         clearTimeout(timeout);
         if (!disposed && current === generation && !document.hidden)
-          timer = setTimeout(poll, POLL_INTERVAL_MS);
+          timer = setTimeout(poll, delay);
       }
     }
     function visibility() {

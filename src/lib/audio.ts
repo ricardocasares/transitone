@@ -269,6 +269,9 @@ export function createAudioEngine(
         );
       }
     },
+    running() {
+      return context?.state === "running";
+    },
     clear,
     async close() {
       clear();

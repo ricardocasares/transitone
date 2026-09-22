@@ -104,32 +104,60 @@ export default function TramApp({ network }: { network: ReactNode }) {
           timer = setTimeout(poll, delay);
       }
     }
+    // Coming back to the tab, or to the window with a suspended audio context:
+    // resume it and play the current snapshot straight away. A browser can
+    // refuse to resume audio outside a gesture (iOS does), so keep listening
+    // and let the next tap or key press finish the job.
+    function gesture() {
+      void revive();
+    }
+    function armGesture(on: boolean) {
+      for (const type of ["pointerdown", "keydown"] as const) {
+        document.removeEventListener(type, gesture);
+        if (on) document.addEventListener(type, gesture, { once: true });
+      }
+    }
+    async function revive() {
+      armGesture(false);
+      if (disposed || !playing.current) return;
+      try {
+        await engine.current?.unlock();
+      } catch {
+        if (disposed) return;
+        setError("Tap anywhere to resume audio.");
+        armGesture(true);
+        return;
+      }
+      if (disposed) return;
+      setError("");
+      ++generation;
+      clearTimeout(timer);
+      request?.abort();
+      void poll();
+    }
     function visibility() {
       ++generation;
       clearTimeout(timer);
       request?.abort();
       engine.current?.clear();
-      tracker.current.primeNext();
-      if (!document.hidden) {
-        if (playing.current) {
-          void engine.current?.unlock().catch(() => {
-            if (disposed) return;
-            playing.current = false;
-            setListening(false);
-            setError("Tap Start listening to resume audio.");
-          });
-        }
-        void poll();
-      }
+      if (!document.hidden) void revive();
+    }
+    function focus() {
+      if (playing.current && !engine.current?.running()) void revive();
     }
     void poll();
     document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("focus", focus);
+    window.addEventListener("pageshow", focus);
     return () => {
       disposed = true;
       ++generation;
       clearTimeout(timer);
       request?.abort();
+      armGesture(false);
       document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("pageshow", focus);
     };
   }, [listening]);
 

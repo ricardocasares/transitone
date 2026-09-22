@@ -278,7 +278,7 @@ describe("snapshot replay", () => {
       ),
     ).toHaveLength(2);
   });
-  test("visibility resume and recovery silently re-prime", () => {
+  test("feed recovery silently re-primes the tracker", () => {
     const tracker = createSnapshotTracker();
     tracker.consume(snapshot());
     tracker.primeNext();
@@ -729,9 +729,11 @@ test("audio plays at full volume, preserves pending notes when retuning, and cle
   const engine = createAudioEngine(() => {});
   try {
     expect(contexts).toBe(0);
+    expect(engine.running()).toBe(false);
     await engine.unlock();
     await engine.unlock();
     expect(contexts).toBe(1);
+    expect(engine.running()).toBe(true);
     expect(gains[0].gain.value).toBe(0.65);
     const keys = Array.from({ length: 62 }, () => lead.key);
     engine.playSnapshot(keys);
